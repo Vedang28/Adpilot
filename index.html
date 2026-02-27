@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdPilot — AI-Powered Ad & SEO Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #05060B;
+      --bg-secondary: #0A0C14;
+      --bg-card: #0F1219;
+      --bg-card-hover: #141820;
+      --border: #1A1E2E;
+      --border-accent: #252B40;
+      --text-primary: #E8ECF4;
+      --text-secondary: #8892A8;
+      --text-muted: #4E5672;
+      --accent-blue: #3B82F6;
+      --accent-blue-soft: rgba(59, 130, 246, 0.15);
+      --accent-blue-glow: rgba(59, 130, 246, 0.25);
+      --accent-purple: #8B5CF6;
+      --accent-green: #10B981;
+      --accent-orange: #F59E0B;
+      --accent-red: #EF4444;
+      --accent-pink: #EC4899;
+      --gradient-hero: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 50%, #EC4899 100%);
+      --font-body: 'Satoshi', 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ===== SCROLL PROGRESS BAR ===== */
+    #scroll-progress {
+      position: fixed; top: 0; left: 0; height: 3px; width: 0;
+      background: var(--gradient-hero); z-index: 9999;
+      transition: width 0.1s linear;
+    }
+
+    /* ===== GRAIN OVERLAY ===== */
+    body::after {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9998;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+    }
+
+    .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+    /* ===== NAV ===== */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      padding: 0; background: rgba(5, 6, 11, 0.75);
+      backdrop-filter: blur(24px) saturate(1.2);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      display: flex; justify-content: space-between; align-items: center;
+      max-width: 1180px; margin: 0 auto; padding: 14px 24px;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; font-size: 19px; text-decoration: none; color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+    .nav-logo-mark {
+      width: 32px; height: 32px; border-radius: 9px;
+      background: var(--gradient-hero);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nav-logo-mark svg { width: 18px; height: 18px; }
+    .nav-links { display: flex; gap: 8px; align-items: center; }
+    .nav-links a {
+      color: var(--text-secondary); text-decoration: none; font-size: 14px;
+      font-weight: 500; padding: 8px 14px; border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .nav-links a:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+    .nav-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+    .nav-btn {
+      padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      text-decoration: none; transition: all 0.2s; cursor: pointer; border: none;
+    }
+    .nav-btn-ghost { color: var(--text-primary); background: transparent; }
+    .nav-btn-ghost:hover { background: rgba(255,255,255,0.06); }
+    .nav-btn-primary {
+      background: var(--accent-blue); color: white;
+      box-shadow: 0 0 0 0 var(--accent-blue-glow);
+    }
+    .nav-btn-primary:hover {
+      background: #2563EB;
+      box-shadow: 0 4px 20px var(--accent-blue-glow);
+    }
+
+    /* ===== HERO ===== */
+    .hero {
+      padding: 150px 0 80px; text-align: center; position: relative; overflow: visible;
+    }
+    /* Radial glow behind hero */
+    .hero::before {
+      content: ''; position: absolute;
+      top: -100px; left: 50%; transform: translateX(-50%);
+      width: 900px; height: 600px;
+      background: radial-gradient(ellipse, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.04) 40%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 18px 6px 12px; border-radius: 100px;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      font-size: 13px; font-weight: 600; color: var(--accent-green);
+      margin-bottom: 36px;
+      animation: fadeUp 0.5s ease-out;
+    }
+    .hero-badge-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--accent-green);
+      box-shadow: 0 0 10px rgba(16,185,129,0.5);
+      animation: blink 2s infinite;
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+
+    .hero h1 {
+      font-size: clamp(44px, 6vw, 76px); font-weight: 900;
+      line-height: 1.04; letter-spacing: -0.035em;
+      margin-bottom: 24px;
+      animation: fadeUp 0.5s ease-out 0.1s both;
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #3B82F6, #8B5CF6, #EC4899, #3B82F6);
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 4s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .hero-sub {
+      font-size: 18px; color: var(--text-secondary); max-width: 580px;
+      margin: 0 auto 40px; line-height: 1.7; font-weight: 400;
+      animation: fadeUp 0.5s ease-out 0.2s both;
+    }
+    .hero-ctas {
+      display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+      animation: fadeUp 0.5s ease-out 0.3s both;
+    }
+    .btn-primary {
+      padding: 14px 30px; border-radius: 10px; font-size: 15px; font-weight: 700;
+      background: var(--accent-blue); color: white; text-decoration: none;
+      border: none; cursor: pointer; transition: all 0.25s;
+      box-shadow: 0 2px 8px var(--accent-blue-glow);
+    }
+    .btn-primary:hover {
+      background: #2563EB; transform: translateY(-1px);
+      box-shadow: 0 8px 32px var(--accent-blue-glow);
+    }
+    .btn-ghost {
+      padding: 14px 30px; border-radius: 10px; font-size: 15px; font-weight: 600;
+      background: transparent; color: var(--text-primary); text-decoration: none;
+      border: 1px solid var(--border-accent); cursor: pointer; transition: all 0.25s;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.04); border-color: var(--text-muted); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== FLOATING LOGOS ===== */
+    .hero-floating {
+      position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    }
+    .float-badge {
+      position: absolute;
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 16px; border-radius: 12px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      font-size: 13px; font-weight: 600; color: var(--text-secondary);
+      animation: floatBadge 6s ease-in-out infinite;
+    }
+    .float-badge svg { width: 20px; height: 20px; flex-shrink: 0; }
+    .float-badge:nth-child(1) { top: 25%; left: 4%; animation-delay: 0s; }
+    .float-badge:nth-child(2) { top: 18%; right: 4%; animation-delay: 1s; }
+    .float-badge:nth-child(3) { top: 50%; left: 2%; animation-delay: 2s; }
+    .float-badge:nth-child(4) { top: 45%; right: 2%; animation-delay: 0.5s; }
+    .float-badge:nth-child(5) { top: 72%; left: 6%; animation-delay: 1.5s; }
+    .float-badge:nth-child(6) { top: 70%; right: 5%; animation-delay: 2.5s; }
+    @keyframes floatBadge {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    /* ===== PRODUCT PREVIEW ===== */
+    .product-preview {
+      margin: 64px auto 0; max-width: 980px; position: relative; z-index: 2;
+      animation: fadeUp 0.7s ease-out 0.5s both;
+    }
+    .preview-glow {
+      position: absolute; inset: -40px; border-radius: 30px;
+      background: radial-gradient(ellipse at center, rgba(59,130,246,0.06), transparent 70%);
+      pointer-events: none;
+    }
+    .preview-window {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden; position: relative;
+      box-shadow: 0 32px 64px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.03) inset;
+    }
+    .preview-topbar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 18px; background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-r { background: #FF5F57; } .dot-y { background: #FEBC2E; } .dot-g { background: #28C840; }
+    .preview-url {
+      flex: 1; text-align: center; font-family: var(--font-mono);
+      font-size: 12px; color: var(--text-muted);
+    }
+    .preview-body {
+      display: grid; grid-template-columns: 190px 1fr; min-height: 340px;
+    }
+
+    /* Sidebar */
+    .p-sidebar {
+      padding: 16px 12px; border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .p-sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: 8px;
+      font-size: 13px; font-weight: 500; color: var(--text-muted);
+      transition: all 0.15s;
+    }
+    .p-sidebar-item.active {
+      background: var(--accent-blue-soft); color: var(--accent-blue); font-weight: 600;
+    }
+    .p-sidebar-item svg { width: 16px; height: 16px; opacity: 0.6; }
+    .p-sidebar-item.active svg { opacity: 1; }
+
+    /* KPIs */
+    .p-content { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+    .p-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .p-kpi {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .p-kpi-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--text-muted); font-weight: 600; margin-bottom: 4px;
+    }
+    .p-kpi-value { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+    .p-kpi-change { font-size: 11px; font-weight: 600; margin-top: 2px; }
+    .p-kpi-change.up { color: var(--accent-green); }
+
+    /* Chart */
+    .p-chart {
+      flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px; overflow: hidden;
+    }
+    .p-chart-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 14px; }
+    .chart-bars {
+      display: flex; align-items: flex-end; gap: 5px; height: 110px;
+    }
+    .bar {
+      flex: 1; border-radius: 3px 3px 0 0; min-width: 0;
+      transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      height: 0 !important;
+    }
+    .bar.animate { height: var(--h) !important; }
+    .bar-meta {
+      background: linear-gradient(to top, rgba(59,130,246,0.15), rgba(59,130,246,0.7));
+      box-shadow: 0 0 12px rgba(59,130,246,0.15);
+    }
+    .bar-google {
+      background: linear-gradient(to top, rgba(139,92,246,0.15), rgba(139,92,246,0.7));
+      box-shadow: 0 0 12px rgba(139,92,246,0.15);
+    }
+    .bar:hover {
+      filter: brightness(1.3);
+      box-shadow: 0 0 20px rgba(59,130,246,0.3);
+    }
+
+    /* ===== TRUSTED ===== */
+    .trusted { padding: 56px 0; text-align: center; }
+    .trusted-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em;
+      font-weight: 700; color: var(--text-muted); margin-bottom: 20px;
+    }
+    .trusted-row {
+      display: flex; justify-content: center; gap: 40px; align-items: center;
+      flex-wrap: wrap; opacity: 0.35;
+    }
+    .trusted-row span { font-size: 15px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.01em; }
+
+    /* ===== SECTION HEADINGS ===== */
+    .sec-label {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.14em;
+      font-weight: 700; color: var(--accent-blue); margin-bottom: 14px;
+    }
+    .sec-title {
+      font-size: clamp(30px, 4vw, 48px); font-weight: 800;
+      letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 18px;
+    }
+    .sec-sub {
+      font-size: 16px; color: var(--text-secondary); max-width: 540px;
+      line-height: 1.7; margin-bottom: 48px;
+    }
+
+    /* ===== PAIN SECTION ===== */
+    .pain { padding: 100px 0; }
+    .pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .pain-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 28px;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer; position: relative; overflow: hidden;
+    }
+    /* Gradient border glow on hover */
+    .pain-card::before {
+      content: ''; position: absolute; inset: -1px; border-radius: 15px;
+      background: linear-gradient(135deg, transparent 40%, rgba(239,68,68,0.3), rgba(245,158,11,0.2), transparent 80%);
+      opacity: 0; transition: opacity 0.4s; z-index: -1;
+    }
+    .pain-card:hover::before { opacity: 1; }
+    .pain-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3), 0 0 30px rgba(239,68,68,0.05);
+    }
+    /* Click pop animation */
+    .pain-card:active { transform: translateY(-2px) scale(0.98); transition-duration: 0.1s; }
+    .pain-card.popped {
+      animation: cardPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes cardPop {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.06); }
+      100% { transform: scale(1); }
+    }
+    .pain-icon {
+      width: 42px; height: 42px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 18px;
+    }
+    .pain-icon svg { width: 20px; height: 20px; }
+    .pain-icon.ic-red { background: rgba(239,68,68,0.1); color: var(--accent-red); }
+    .pain-icon.ic-orange { background: rgba(245,158,11,0.1); color: var(--accent-orange); }
+    .pain-icon.ic-purple { background: rgba(139,92,246,0.1); color: var(--accent-purple); }
+    .pain-icon.ic-blue { background: rgba(59,130,246,0.1); color: var(--accent-blue); }
+    .pain-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .pain-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+    .pain-stat {
+      margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+      font-family: var(--font-mono); font-size: 22px; font-weight: 800;
+    }
+    .pain-stat.red { color: var(--accent-red); }
+    .pain-stat.orange { color: var(--accent-orange); }
+    .pain-stat.purple { color: var(--accent-purple); }
+    .pain-stat-sub { font-size: 11px; color: var(--text-muted); font-family: var(--font-body); font-weight: 500; margin-top: 2px; }
+
+    /* ===== PILLARS ===== */
+    .pillars { padding: 100px 0; }
+    .pillar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .pillar-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 30px;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative; overflow: hidden; cursor: pointer;
+    }
+    /* Animated gradient top line */
+    .pillar-card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-pink), var(--accent-blue));
+      background-size: 300% 100%;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .pillar-card:hover::after {
+      opacity: 1;
+      animation: gradientSweep 2s linear infinite;
+    }
+    @keyframes gradientSweep {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 300% 50%; }
+    }
+    .pillar-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3), 0 0 30px rgba(59,130,246,0.06);
+    }
+    .pillar-card:active { transform: translateY(-2px) scale(0.98); transition-duration: 0.1s; }
+    .pillar-card.popped { animation: cardPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .pillar-num {
+      display: inline-block; padding: 3px 10px; border-radius: 6px;
+      background: var(--accent-blue-soft); color: var(--accent-blue);
+      font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .pillar-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+    .pillar-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.65; }
+
+    /* ===== HOW IT WORKS ===== */
+    .how { padding: 100px 0; }
+    .steps-row {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+      position: relative;
+    }
+    /* Connecting line */
+    .steps-row::before {
+      content: ''; position: absolute;
+      top: 44px; left: calc(16.66% + 24px); right: calc(16.66% + 24px);
+      height: 2px;
+      background: repeating-linear-gradient(90deg, var(--border-accent) 0, var(--border-accent) 8px, transparent 8px, transparent 16px);
+    }
+    .step { text-align: center; position: relative; z-index: 1; padding: 0 16px; }
+    .step-icon {
+      width: 88px; height: 88px; border-radius: 50%;
+      background: var(--bg-card); border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+    /* Pulse ring on hover */
+    .step-icon::after {
+      content: ''; position: absolute; inset: -8px; border-radius: 50%;
+      border: 2px solid var(--accent-blue); opacity: 0;
+      transition: all 0.4s;
+    }
+    .step-icon svg { width: 32px; height: 32px; color: var(--accent-blue); transition: transform 0.3s; }
+    .step:hover .step-icon {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 40px var(--accent-blue-glow);
+      transform: scale(1.08);
+    }
+    .step:hover .step-icon::after { opacity: 0.3; animation: ringPulse 1.5s ease-out infinite; }
+    .step:hover .step-icon svg { transform: scale(1.1); }
+    @keyframes ringPulse {
+      0% { transform: scale(1); opacity: 0.3; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    .step h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .step p { font-size: 14px; color: var(--text-secondary); max-width: 260px; margin: 0 auto; line-height: 1.6; }
+
+    /* ===== COMPARISON ===== */
+    .comparison { padding: 100px 0; }
+    .cmp-table {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+    }
+    .cmp-table th {
+      padding: 14px 18px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+      color: var(--text-muted); text-align: left;
+    }
+    .cmp-table th.us { color: var(--accent-blue); background: rgba(59,130,246,0.05); }
+    .cmp-table td {
+      padding: 13px 18px; font-size: 14px; color: var(--text-secondary);
+      border-bottom: 1px solid var(--border); background: var(--bg-card);
+    }
+    .cmp-table td:first-child { font-weight: 600; color: var(--text-primary); }
+    .cmp-table td.us { background: rgba(59,130,246,0.03); }
+    .cmp-table tr:last-child td { border-bottom: none; }
+    .cmp-y { color: var(--accent-green); font-weight: 700; }
+    .cmp-n { color: var(--text-muted); }
+    .cmp-p { color: var(--accent-orange); font-weight: 600; }
+
+    /* ===== PRICING ===== */
+    .pricing { padding: 100px 0; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+    .price-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 36px 28px;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative; cursor: pointer;
+    }
+    .price-card:hover {
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 24px 48px rgba(0,0,0,0.3);
+      border-color: var(--border-accent);
+    }
+    .price-card:active { transform: translateY(-2px) scale(0.98); transition-duration: 0.1s; }
+    .price-card.popped { animation: cardPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .price-card.pop {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 48px var(--accent-blue-glow), 0 0 0 1px var(--accent-blue);
+      transform: scale(1.03);
+    }
+    .price-card.pop:hover {
+      transform: translateY(-6px) scale(1.05);
+      box-shadow: 0 0 60px var(--accent-blue-glow), 0 24px 48px rgba(0,0,0,0.3);
+    }
+    .price-badge {
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+      padding: 5px 18px; border-radius: 100px;
+      background: var(--accent-blue); color: white;
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .price-plan { font-size: 14px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
+    .price-amt { font-size: 48px; font-weight: 900; letter-spacing: -0.04em; line-height: 1; margin-bottom: 4px; }
+    .price-amt span { font-size: 16px; font-weight: 500; color: var(--text-muted); }
+    .price-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; line-height: 1.5; }
+    .price-list { list-style: none; margin-bottom: 28px; }
+    .price-list li {
+      font-size: 14px; color: var(--text-secondary); padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .price-list li svg { width: 16px; height: 16px; color: var(--accent-green); flex-shrink: 0; }
+    .price-btn {
+      display: block; width: 100%; padding: 14px; border-radius: 10px;
+      text-align: center; font-weight: 700; font-size: 14px;
+      text-decoration: none; transition: all 0.25s; cursor: pointer; border: none;
+    }
+    .price-btn-fill { background: var(--accent-blue); color: white; }
+    .price-btn-fill:hover { background: #2563EB; box-shadow: 0 4px 20px var(--accent-blue-glow); }
+    .price-btn-outline {
+      background: transparent; color: var(--text-primary);
+      border: 1px solid var(--border-accent);
+    }
+    .price-btn-outline:hover { background: rgba(255,255,255,0.04); }
+
+    /* ===== FINAL CTA ===== */
+    .cta-final { padding: 100px 0; text-align: center; position: relative; }
+    .cta-final::before {
+      content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 400px;
+      background: radial-gradient(circle, rgba(59,130,246,0.08), rgba(139,92,246,0.04), transparent);
+      pointer-events: none;
+    }
+    .cta-final h2 {
+      font-size: clamp(34px, 4vw, 56px); font-weight: 800;
+      letter-spacing: -0.03em; margin-bottom: 18px; line-height: 1.1;
+    }
+    .cta-final p { font-size: 17px; color: var(--text-secondary); margin-bottom: 36px; max-width: 480px; margin-inline: auto; }
+
+    /* ===== FOOTER ===== */
+    footer { padding: 56px 0 36px; border-top: 1px solid var(--border); }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 36px; }
+    .footer-about p { font-size: 14px; color: var(--text-muted); line-height: 1.6; max-width: 280px; margin-top: 12px; }
+    .footer-col h4 {
+      font-size: 12px; font-weight: 700; color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px;
+    }
+    .footer-col a { display: block; font-size: 14px; color: var(--text-muted); text-decoration: none; padding: 3px 0; transition: color 0.2s; }
+    .footer-col a:hover { color: var(--text-primary); }
+    .footer-bottom {
+      padding-top: 20px; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 900px) {
+      .pain-grid, .pillar-grid, .pricing-grid, .steps-row { grid-template-columns: 1fr; }
+      .preview-body { grid-template-columns: 1fr; }
+      .p-sidebar { display: none; }
+      .p-kpis { grid-template-columns: repeat(2, 1fr); }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .float-badge { display: none; }
+      .steps-row::before { display: none; }
+      .nav-links a:not(.nav-btn) { display: none; }
+    }
+
+    /* SVG icon helper */
+    .ic { display: inline-flex; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body>
+
+<div id="scroll-progress"></div>
+
+<!-- ===== NAV ===== -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <div class="nav-logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      AdPilot
+    </a>
+    <div class="nav-links">
+      <a href="#problem">Problem</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <div class="nav-divider"></div>
+      <a href="/login.html" class="nav-btn nav-btn-ghost">Log in</a>
+      <a href="#" class="nav-btn nav-btn-primary">Get Early Access</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <!-- Floating product badges -->
+  <div class="hero-floating">
+    <div class="float-badge">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Meta Ads
+    </div>
+    <div class="float-badge">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      SEO Engine
+    </div>
+    <div class="float-badge">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="#8B5CF6" stroke-width="2"/><path d="M21 21l-4.35-4.35" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round"/></svg>
+      Research AI
+    </div>
+    <div class="float-badge">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Analytics
+    </div>
+    <div class="float-badge">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#EC4899" stroke-width="2"/><path d="M3 9h18M9 21V9" stroke="#EC4899" stroke-width="2"/></svg>
+      Google Ads
+    </div>
+    <div class="float-badge">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Autopilot
+    </div>
+  </div>
+
+  <div class="container" style="position:relative; z-index:3;">
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      Building in Public — Early Access Open
+    </div>
+    <h1>Stop Managing Ads.<br><span class="gradient-text">Start Scaling Them.</span></h1>
+    <p class="hero-sub">
+      AdPilot replaces manual research, creative testing, bid management,
+      and SEO tracking with AI agents that work 24/7 across Meta and Google.
+    </p>
+    <div class="hero-ctas">
+      <a href="#" class="btn-primary">Join Early Access</a>
+      <a href="#features" class="btn-ghost">See How It Works →</a>
+    </div>
+
+    <!-- Product Preview -->
+    <div class="product-preview">
+      <div class="preview-glow"></div>
+      <div class="preview-window">
+        <div class="preview-topbar">
+          <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+          <span class="preview-url">adpilot.app — Command Center</span>
+        </div>
+        <div class="preview-body">
+          <div class="p-sidebar">
+            <div class="p-sidebar-item active">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              Dashboard
+            </div>
+            <div class="p-sidebar-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              Campaigns
+            </div>
+            <div class="p-sidebar-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              Research Hub
+            </div>
+            <div class="p-sidebar-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Ad Studio
+            </div>
+            <div class="p-sidebar-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              SEO
+            </div>
+            <div class="p-sidebar-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+              Analytics
+            </div>
+          </div>
+          <div class="p-content">
+            <div class="p-kpis">
+              <div class="p-kpi">
+                <div class="p-kpi-label">Ad Spend</div>
+                <div class="p-kpi-value">$12.4K</div>
+                <div class="p-kpi-change up">↑ 8% vs last month</div>
+              </div>
+              <div class="p-kpi">
+                <div class="p-kpi-label">ROAS</div>
+                <div class="p-kpi-value">4.2x</div>
+                <div class="p-kpi-change up">↑ 0.6 from baseline</div>
+              </div>
+              <div class="p-kpi">
+                <div class="p-kpi-label">Conversions</div>
+                <div class="p-kpi-value">847</div>
+                <div class="p-kpi-change up">↑ 23% growth</div>
+              </div>
+              <div class="p-kpi">
+                <div class="p-kpi-label">SEO Keywords</div>
+                <div class="p-kpi-value">142</div>
+                <div class="p-kpi-change up">↑ 18 new rankings</div>
+              </div>
+            </div>
+            <div class="p-chart">
+              <div class="p-chart-title">Cross-Platform Performance — Last 30 Days</div>
+              <div class="chart-bars" id="chart">
+                <div class="bar bar-meta" style="--h:42%"></div>
+                <div class="bar bar-google" style="--h:58%"></div>
+                <div class="bar bar-meta" style="--h:53%"></div>
+                <div class="bar bar-google" style="--h:38%"></div>
+                <div class="bar bar-meta" style="--h:68%"></div>
+                <div class="bar bar-google" style="--h:62%"></div>
+                <div class="bar bar-meta" style="--h:48%"></div>
+                <div class="bar bar-google" style="--h:73%"></div>
+                <div class="bar bar-meta" style="--h:78%"></div>
+                <div class="bar bar-google" style="--h:58%"></div>
+                <div class="bar bar-meta" style="--h:62%"></div>
+                <div class="bar bar-google" style="--h:82%"></div>
+                <div class="bar bar-meta" style="--h:70%"></div>
+                <div class="bar bar-google" style="--h:88%"></div>
+                <div class="bar bar-meta" style="--h:65%"></div>
+                <div class="bar bar-google" style="--h:76%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TRUSTED ===== -->
+<section class="trusted">
+  <div class="container">
+    <p class="trusted-label">Built for teams who refuse to waste ad spend</p>
+    <div class="trusted-row">
+      <span>Agency One</span><span>GrowthLab</span><span>ScaleHQ</span><span>AdVelocity</span><span>NorthStar Media</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PAIN ===== -->
+<section class="pain" id="problem">
+  <div class="container">
+    <div class="sec-label">The Problem</div>
+    <h2 class="sec-title">Your Ad Workflow Is<br>Bleeding Time & Money</h2>
+    <p class="sec-sub">Marketing teams spend 15-25 hours per week on repetitive tasks that AI should handle. Agencies managing 10+ clients? Multiply that chaos.</p>
+
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="pain-icon ic-red">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        </div>
+        <h3>Research Takes Forever</h3>
+        <p>Manually scanning competitor ads, landing pages, and keywords across 5+ browser tabs for every campaign.</p>
+        <div class="pain-stat red">4+ hrs<div class="pain-stat-sub">wasted per campaign</div></div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon ic-orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </div>
+        <h3>Creative Bottleneck</h3>
+        <p>Juggling Canva, ChatGPT, and manual copywriting. Testing variations is slow. Windows close before you launch.</p>
+        <div class="pain-stat orange">3-5 hrs<div class="pain-stat-sub">per ad set</div></div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon ic-purple">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </div>
+        <h3>Platform Silos</h3>
+        <p>Meta Ads Manager, Google Ads, Semrush, Ahrefs — separate dashboards, separate logins, no unified view.</p>
+        <div class="pain-stat purple">$500+/mo<div class="pain-stat-sub">on 3-5 tools</div></div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon ic-red">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <h3>Manual Optimization</h3>
+        <p>Checking performance daily, pausing underperformers, adjusting bids. AI does this in minutes. You spend hours.</p>
+        <div class="pain-stat red">30-60 min<div class="pain-stat-sub">daily per platform</div></div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon ic-orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        </div>
+        <h3>Wasted Ad Spend</h3>
+        <p>Without AI optimization, small businesses waste an estimated 30% of budget on poor targeting and stale creative.</p>
+        <div class="pain-stat orange">30%<div class="pain-stat-sub">of budget wasted</div></div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon ic-blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>SEO Is an Afterthought</h3>
+        <p>SEO and paid ads run in parallel but nobody connects keyword insights to ad strategy. Double the work.</p>
+        <div class="pain-stat" style="color:var(--accent-blue)">5-10 hrs<div class="pain-stat-sub">extra weekly</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PILLARS ===== -->
+<section class="pillars" id="features">
+  <div class="container">
+    <div class="sec-label">The Solution</div>
+    <h2 class="sec-title">6 AI Agents.<br>One Command Center.</h2>
+    <p class="sec-sub">Each agent is a specialized pipeline that collects data, reasons with AI, and takes action — so you don't have to.</p>
+
+    <div class="pillar-grid">
+      <div class="pillar-card">
+        <div class="pillar-num">01</div>
+        <h3>Research Agent</h3>
+        <p>Drop in your URL. AI discovers competitors, analyzes their ads via Meta Ad Library, identifies winning patterns, and generates a competitive intelligence report.</p>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-num">02</div>
+        <h3>Creative Agent</h3>
+        <p>Generates 5-10 headline variations, copy options, CTA suggestions, image prompts, and audience targeting — all based on research insights.</p>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-num">03</div>
+        <h3>Campaign Autopilot</h3>
+        <p>One-click deployment to Meta and Google. AI handles audiences, bidding, placements, and cross-platform budget allocation automatically.</p>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-num">04</div>
+        <h3>Optimization Engine</h3>
+        <p>Monitors campaigns every 15 minutes. Pauses underperformers, scales winners, adjusts bids, rotates creative to prevent fatigue.</p>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-num">05</div>
+        <h3>SEO Intelligence</h3>
+        <p>Keyword tracking, competitor gap analysis, content briefs, technical audits, and AI visibility monitoring — connected to your ad strategy.</p>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-num">06</div>
+        <h3>Unified Dashboard</h3>
+        <p>Cross-platform ROAS, CPA, conversions, and SEO rankings in one view. AI-generated weekly reports. White-label export for agencies.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== HOW IT WORKS ===== -->
+<section class="how">
+  <div class="container">
+    <div class="sec-label" style="text-align:center">How It Works</div>
+    <h2 class="sec-title" style="text-align:center">Three Steps to Autopilot</h2>
+    <p class="sec-sub" style="text-align:center; margin:0 auto 56px;">From zero to optimized campaigns in under 10 minutes.</p>
+
+    <div class="steps-row">
+      <div class="step">
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+        </div>
+        <h3>Connect Accounts</h3>
+        <p>Link your Meta Ads, Google Ads, and Slack in 60 seconds via OAuth. Your data stays yours.</p>
+      </div>
+      <div class="step">
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 014 4c0 1.95-2 4-4 6-2-2-4-4.05-4-6a4 4 0 014-4z"/><path d="M4.93 10.93a8 8 0 1012.14 2.14"/><path d="M12 18v4"/></svg>
+        </div>
+        <h3>Let AI Build</h3>
+        <p>AI researches competitors, generates ad creative, configures campaigns, and sets automation rules.</p>
+      </div>
+      <div class="step">
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        </div>
+        <h3>Approve & Scale</h3>
+        <p>Review AI suggestions, approve with one click, and watch the optimization engine scale your winners.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== COMPARISON ===== -->
+<section class="comparison">
+  <div class="container">
+    <div class="sec-label">Why AdPilot</div>
+    <h2 class="sec-title">Replace 5 Tools With One</h2>
+    <p class="sec-sub">No other platform combines AI research, ad creation, campaign management, and SEO in one place.</p>
+
+    <table class="cmp-table">
+      <thead>
+        <tr><th>Feature</th><th>Madgicx</th><th>Semrush</th><th>AdCreative.ai</th><th class="us">AdPilot ✦</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Meta Ads Management</td><td><span class="cmp-y">✓</span></td><td><span class="cmp-n">✗</span></td><td><span class="cmp-n">✗</span></td><td class="us"><span class="cmp-y">✓</span></td></tr>
+        <tr><td>Google Ads Management</td><td><span class="cmp-p">Partial</span></td><td><span class="cmp-p">Limited</span></td><td><span class="cmp-n">✗</span></td><td class="us"><span class="cmp-y">✓</span></td></tr>
+        <tr><td>AI Ad Creative</td><td><span class="cmp-p">Partial</span></td><td><span class="cmp-n">✗</span></td><td><span class="cmp-y">✓</span></td><td class="us"><span class="cmp-y">✓</span></td></tr>
+        <tr><td>SEO Keyword Tracking</td><td><span class="cmp-n">✗</span></td><td><span class="cmp-y">✓</span></td><td><span class="cmp-n">✗</span></td><td class="us"><span class="cmp-y">✓</span></td></tr>
+        <tr><td>AI Competitor Research</td><td><span class="cmp-n">✗</span></td><td><span class="cmp-p">Manual</span></td><td><span class="cmp-n">✗</span></td><td class="us"><span class="cmp-y">✓ Agent</span></td></tr>
+        <tr><td>Automation Rules</td><td><span class="cmp-y">✓</span></td><td><span class="cmp-n">✗</span></td><td><span class="cmp-n">✗</span></td><td class="us"><span class="cmp-y">✓</span></td></tr>
+        <tr><td>Starting Price</td><td>$72/mo</td><td>$130/mo</td><td>$29/mo</td><td class="us"><strong style="color:var(--accent-blue)">$49/mo</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== PRICING ===== -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <div class="sec-label" style="text-align:center">Pricing</div>
+    <h2 class="sec-title" style="text-align:center">Pay Less Than One Lost Deal</h2>
+    <p class="sec-sub" style="text-align:center; margin:0 auto 56px;">Simple pricing. No percentage of ad spend. Early access gets 40% off.</p>
+
+    <div class="pricing-grid">
+      <!-- Starter -->
+      <div class="price-card">
+        <div class="price-plan">Starter</div>
+        <div class="price-amt">$49 <span>/month</span></div>
+        <p class="price-desc">For solo marketers testing AI automation.</p>
+        <ul class="price-list">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>1 ad platform (Meta or Google)</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>5 active campaigns</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>3 AI research reports/mo</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>20 AI ad generations/mo</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>50 SEO keywords tracked</li>
+        </ul>
+        <a href="#" class="price-btn price-btn-outline">Start Free Trial</a>
+      </div>
+
+      <!-- Growth (Featured) -->
+      <div class="price-card pop">
+        <div class="price-badge">Most Popular</div>
+        <div class="price-plan">Growth</div>
+        <div class="price-amt">$149 <span>/month</span></div>
+        <p class="price-desc">For growing teams and agencies managing multiple campaigns.</p>
+        <ul class="price-list">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Meta + Google Ads</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>25 active campaigns</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>15 AI research reports/mo</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>100 AI ad generations/mo</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>250 SEO keywords tracked</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>PDF report export</li>
+        </ul>
+        <a href="#" class="price-btn price-btn-fill">Get Started Now</a>
+      </div>
+
+      <!-- Scale -->
+      <div class="price-card">
+        <div class="price-plan">Scale</div>
+        <div class="price-amt">$299 <span>/month</span></div>
+        <p class="price-desc">For agencies and enterprises needing unlimited everything.</p>
+        <ul class="price-list">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>All platforms + TikTok + LinkedIn</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Unlimited campaigns</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Unlimited AI features</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Unlimited SEO tracking</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>White-label reports + API</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Dedicated success manager</li>
+        </ul>
+        <a href="#" class="price-btn price-btn-outline">Contact Sales</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CTA ===== -->
+<section class="cta-final">
+  <div class="container">
+    <h2>Ready to Put Your Ads<br><span class="gradient-text">on Autopilot?</span></h2>
+    <p>Join the early access list. First 100 users get 40% off for life.</p>
+    <div class="hero-ctas">
+      <a href="#" class="btn-primary">Join Early Access — Free</a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-about">
+        <a href="#" class="nav-logo">
+          <div class="nav-logo-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          AdPilot
+        </a>
+        <p>AI-powered ad and SEO automation for teams who refuse to waste money on manual marketing.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#">Integrations</a><a href="#">Changelog</a>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="#">Documentation</a><a href="#">API Reference</a><a href="#">Blog</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Privacy Policy</a><a href="#">Terms of Service</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 AdPilot. All rights reserved.</p>
+      <p>Built by Vedang Vaidya & Aditya</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ===== SCROLL PROGRESS =====
+  const bar = document.getElementById('scroll-progress');
+  window.addEventListener('scroll', () => {
+    const pct = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
+    bar.style.width = Math.min(pct, 100) + '%';
+  }, { passive: true });
+
+  // ===== STAGGERED SCROLL REVEAL =====
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        // Stagger children within a grid
+        const parent = e.target.closest('.pain-grid, .pillar-grid, .pricing-grid, .steps-row');
+        if (parent) {
+          const siblings = [...parent.children];
+          const idx = siblings.indexOf(e.target);
+          e.target.style.transitionDelay = (idx * 0.08) + 's';
+        }
+        e.target.classList.add('revealed');
+        revealObserver.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+
+  document.querySelectorAll('.pain-card, .pillar-card, .step, .price-card').forEach(el => {
+    el.classList.add('reveal-item');
+    revealObserver.observe(el);
+  });
+
+  // ===== CARD POP ON CLICK =====
+  document.querySelectorAll('.pain-card, .pillar-card, .price-card').forEach(card => {
+    card.addEventListener('click', () => {
+      card.classList.remove('popped');
+      void card.offsetWidth; // reflow
+      card.classList.add('popped');
+    });
+  });
+
+  // ===== CHART BAR ANIMATION =====
+  const chartObserver = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const bars = e.target.querySelectorAll('.bar');
+        bars.forEach((b, i) => {
+          setTimeout(() => b.classList.add('animate'), i * 50);
+        });
+        chartObserver.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.3 });
+  const chart = document.getElementById('chart');
+  if (chart) chartObserver.observe(chart);
+
+  // ===== KPI COUNTER ANIMATION =====
+  const kpiObserver = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const el = e.target;
+        const text = el.textContent;
+        const match = text.match(/([\$]?)([\d.]+)([KkxX%]?)/);
+        if (!match) return;
+        const prefix = match[1], target = parseFloat(match[2]), suffix = match[3];
+        const duration = 1200;
+        const start = performance.now();
+        const step = (now) => {
+          const progress = Math.min((now - start) / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+          const current = (target * eased);
+          el.textContent = prefix + (target % 1 !== 0 ? current.toFixed(1) : Math.round(current)) + suffix;
+          if (progress < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+        kpiObserver.unobserve(el);
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('.p-kpi-value').forEach(el => kpiObserver.observe(el));
+
+  // ===== SECTION HEADINGS REVEAL =====
+  const headingObserver = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('heading-visible');
+        headingObserver.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.2 });
+  document.querySelectorAll('.sec-label, .sec-title, .sec-sub').forEach(el => {
+    el.classList.add('heading-hidden');
+    headingObserver.observe(el);
+  });
+</script>
+
+<style>
+  /* ===== REVEAL ANIMATIONS ===== */
+  .reveal-item {
+    opacity: 0;
+    transform: translateY(28px) scale(0.97);
+    transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .reveal-item.revealed {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  /* ===== HEADING REVEAL ===== */
+  .heading-hidden {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .heading-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .sec-title.heading-hidden { transition-delay: 0.1s; }
+  .sec-sub.heading-hidden { transition-delay: 0.2s; }
+
+  /* ===== FLOATING BADGE HOVER GLOW ===== */
+  .float-badge {
+    transition: all 0.3s ease;
+  }
+  .float-badge:hover {
+    border-color: var(--border-accent);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(59,130,246,0.1);
+    transform: translateY(-14px) !important;
+  }
+
+  /* ===== COMPARISON TABLE ROW HOVER ===== */
+  .cmp-table tbody tr {
+    transition: background 0.2s;
+  }
+  .cmp-table tbody tr:hover td {
+    background: rgba(59,130,246,0.03);
+  }
+  .cmp-table tbody tr:hover td.us {
+    background: rgba(59,130,246,0.08);
+  }
+
+  /* ===== NAV LOGO HOVER ===== */
+  .nav-logo-mark {
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+  .nav-logo:hover .nav-logo-mark {
+    transform: rotate(-8deg) scale(1.05);
+    box-shadow: 0 0 16px rgba(59,130,246,0.3);
+  }
+
+  /* ===== HERO CTA BUTTON PULSE ===== */
+  .btn-primary {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-primary::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    transform: translateX(-100%);
+  }
+  .btn-primary:hover::after {
+    animation: btnSheen 0.6s ease forwards;
+  }
+  @keyframes btnSheen {
+    to { transform: translateX(100%); }
+  }
+</style>
+
+</body>
+</html>

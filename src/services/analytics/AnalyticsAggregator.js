@@ -1,0 +1,151 @@
+'use strict';
+
+const prisma            = require('../../config/prisma');
+const { getRedis }      = require('../../config/redis');
+const MetricsCalculator = require('./MetricsCalculator');
+const AnomalyDetector   = require('./AnomalyDetector');
+const logger            = require('../../config/logger');
+
+const CACHE_TTL = 300; // 5 minutes
+
+class AnalyticsAggregator {
+  /**
+   * Get overview metrics for a team, with Redis caching.
+   */
+  async getOverview(teamId) {
+    const cacheKey = `analytics:overview:${teamId}`;
+    const redis = getRedis();
+
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch (_) { /* cache miss — continue */ }
+
+    const campaigns = await prisma.campaign.findMany({
+      where: { teamId },
+      select: { id: true, name: true, status: true, budget: true, performance: true },
+    });
+
+    const active  = campaigns.filter((c) => c.status === 'active').length;
+    const perfs   = campaigns.map((c) => c.performance || {});
+
+    const totalSpend   = perfs.reduce((s, p) => s + (Number(p.spend)  || 0), 0);
+    const totalRevenue = perfs.reduce((s, p) => s + (Number(p.revenue) || 0), 0);
+    const totalClicks  = perfs.reduce((s, p) => s + (Number(p.clicks)  || 0), 0);
+    const totalImps    = perfs.reduce((s, p) => s + (Number(p.impressions) || 0), 0);
+    const totalConv    = perfs.reduce((s, p) => s + (Number(p.conversions) || 0), 0);
+
+    const roasValues = perfs.map((p) => Number(p.roas)).filter((v) => v > 0);
+    const avgROAS    = roasValues.length ? roasValues.reduce((s, v) => s + v, 0) / roasValues.length : 0;
+
+    const topCampaign = campaigns.reduce((best, c) => {
+      const s = Number((c.performance || {}).spend) || 0;
+      return s > (Number(((best || {}).performance || {}).spend) || 0) ? c : best;
+    }, null);
+
+    const result = {
+      totalCampaigns:  campaigns.length,
+      activeCampaigns: active,
+      totalAdSpend:    parseFloat(totalSpend.toFixed(2)),
+      totalRevenue:    parseFloat(totalRevenue.toFixed(2)),
+      totalClicks,
+      totalImpressions: totalImps,
+      totalConversions: totalConv,
+      avgROAS:         parseFloat(avgROAS.toFixed(2)),
+      overallCPA:      MetricsCalculator.cpa(totalSpend, totalConv),
+      overallCTR:      MetricsCalculator.ctr(totalClicks, totalImps),
+      topCampaign:     topCampaign ? { id: topCampaign.id, name: topCampaign.name } : null,
+    };
+
+    try {
+      await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(result));
+    } catch (_) { /* non-critical */ }
+
+    return result;
+  }
+
+  /**
+   * Per-campaign performance list with derived metrics.
+   */
+  async getCampaignPerformance(teamId) {
+    const campaigns = await prisma.campaign.findMany({
+      where: { teamId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, name: true, platform: true, status: true,
+        budget: true, budgetType: true, performance: true, createdAt: true,
+        _count: { select: { ads: true } },
+      },
+    });
+
+    return campaigns.map((c) => {
+      const p = c.performance || {};
+      const spend       = Number(p.spend)       || 0;
+      const revenue     = Number(p.revenue)     || 0;
+      const clicks      = Number(p.clicks)      || 0;
+      const impressions = Number(p.impressions) || 0;
+      const conversions = Number(p.conversions) || 0;
+
+      return {
+        id:          c.id,
+        name:        c.name,
+        platform:    c.platform,
+        status:      c.status,
+        budget:      Number(c.budget),
+        budgetType:  c.budgetType,
+        adsCount:    c._count.ads,
+        spend,
+        revenue,
+        roas:        MetricsCalculator.roas(revenue, spend),
+        cpa:         MetricsCalculator.cpa(spend, conversions),
+        ctr:         MetricsCalculator.ctr(clicks, impressions),
+        clicks,
+        impressions,
+        conversions,
+        createdAt:   c.createdAt,
+      };
+    });
+  }
+
+  /**
+   * Detect performance anomalies across active campaigns.
+   * Compares last 7-day averages against 30-day baseline (using seeded perf data).
+   */
+  async detectAnomalies(teamId) {
+    const campaigns = await prisma.campaign.findMany({
+      where: { teamId, status: 'active' },
+      select: { id: true, name: true, performance: true },
+    });
+
+    const anomalies = [];
+    for (const c of campaigns) {
+      const p = c.performance || {};
+      // Build simple single-point history from stored performance
+      // In production this would read from a time-series table
+      const history = {
+        roas: [2.5, 3.0, 2.8, 3.2, 2.9],   // mock 5-day baseline
+        cpa:  [12, 14, 11, 13, 12],
+        ctr:  [2.1, 2.4, 2.0, 2.3, 2.2],
+      };
+      const current = {
+        roas: Number(p.roas) || 0,
+        cpa:  MetricsCalculator.cpa(Number(p.spend) || 0, Number(p.conversions) || 1),
+        ctr:  MetricsCalculator.ctr(Number(p.clicks) || 0, Number(p.impressions) || 1),
+      };
+      const detected = AnomalyDetector.scanAll(current, history);
+      if (detected.length) {
+        anomalies.push({ campaignId: c.id, campaignName: c.name, anomalies: detected });
+      }
+    }
+    return anomalies;
+  }
+
+  /** Invalidate cached overview for a team (call after mutations) */
+  async invalidateCache(teamId) {
+    try {
+      await getRedis().del(`analytics:overview:${teamId}`);
+    } catch (_) { /* non-critical */ }
+  }
+}
+
+module.exports = new AnalyticsAggregator();

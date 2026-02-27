@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdPilot — Sign In</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #06070A;
+      --bg-2: #0D0F14;
+      --bg-3: #141720;
+      --border: rgba(255,255,255,0.07);
+      --border-hover: rgba(99,102,241,0.4);
+      --blue: #3B82F6;
+      --blue-dim: rgba(59,130,246,0.12);
+      --purple: #8B5CF6;
+      --purple-dim: rgba(139,92,246,0.1);
+      --text: #F0F2F8;
+      --text-2: #8B90A4;
+      --text-3: #4B5168;
+      --success: #10B981;
+      --error: #EF4444;
+      --font: 'Outfit', sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    html { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+    /* ── NOISE TEXTURE ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      opacity: 0.5;
+    }
+
+    /* ── RADIAL GLOW ── */
+    .bg-glow {
+      position: fixed; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 600px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.04) 40%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── GRID BG ── */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse at center top, rgba(0,0,0,0.4) 0%, transparent 70%);
+    }
+
+    /* ── LAYOUT ── */
+    .page {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    /* ── LEFT PANEL ── */
+    .left-panel {
+      display: flex; flex-direction: column;
+      padding: 48px;
+      background: linear-gradient(135deg, rgba(13,15,20,0.95) 0%, rgba(20,23,32,0.8) 100%);
+      border-right: 1px solid var(--border);
+      position: relative; overflow: hidden;
+    }
+
+    .left-panel::before {
+      content: '';
+      position: absolute; bottom: -100px; left: -100px;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .left-panel::after {
+      content: '';
+      position: absolute; top: 200px; right: -50px;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: auto;
+    }
+
+    .brand-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .brand-name { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+    .brand-name span { color: var(--blue); }
+
+    .left-content { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 48px 0; }
+
+    .left-tagline {
+      font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--blue); margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .left-tagline::before {
+      content: ''; width: 20px; height: 1px; background: var(--blue);
+    }
+
+    .left-headline {
+      font-size: 38px; font-weight: 800; line-height: 1.15;
+      letter-spacing: -1px; margin-bottom: 20px;
+    }
+
+    .left-headline .gradient {
+      background: linear-gradient(135deg, #60A5FA 0%, #A78BFA 50%, #F472B6 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .left-sub {
+      font-size: 15px; color: var(--text-2); line-height: 1.6; max-width: 380px;
+      margin-bottom: 40px;
+    }
+
+    /* Stats Row */
+    .stats-row {
+      display: flex; gap: 28px; margin-bottom: 48px;
+    }
+
+    .stat-item { display: flex; flex-direction: column; gap: 4px; }
+    .stat-value {
+      font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #60A5FA, #A78BFA);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; }
+
+    /* Floating cards */
+    .left-cards { display: flex; flex-direction: column; gap: 12px; }
+
+    .metric-card {
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex; align-items: center; gap: 14px;
+      animation: floatCard 6s ease-in-out infinite;
+    }
+
+    .metric-card:nth-child(2) { animation-delay: -2s; }
+    .metric-card:nth-child(3) { animation-delay: -4s; }
+
+    @keyframes floatCard {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+
+    .metric-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    .metric-icon.blue { background: rgba(59,130,246,0.15); }
+    .metric-icon.green { background: rgba(16,185,129,0.15); }
+    .metric-icon.purple { background: rgba(139,92,246,0.15); }
+
+    .metric-text { flex: 1; }
+    .metric-label { font-size: 11px; color: var(--text-3); margin-bottom: 2px; }
+    .metric-value { font-size: 15px; font-weight: 700; }
+
+    .metric-badge {
+      font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px;
+      font-family: var(--mono);
+    }
+    .badge-up { background: rgba(16,185,129,0.12); color: #10B981; }
+    .badge-live { background: rgba(59,130,246,0.12); color: var(--blue); }
+    .badge-new { background: rgba(139,92,246,0.12); color: var(--purple); }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 48px;
+    }
+
+    .auth-box {
+      width: 100%; max-width: 420px;
+    }
+
+    .auth-header { margin-bottom: 32px; }
+
+    .auth-title {
+      font-size: 26px; font-weight: 800; letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .auth-sub { font-size: 14px; color: var(--text-2); line-height: 1.5; }
+    .auth-sub a { color: var(--blue); text-decoration: none; font-weight: 500; }
+    .auth-sub a:hover { text-decoration: underline; }
+
+    /* Tabs */
+    .auth-tabs {
+      display: flex;
+      background: var(--bg-3);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 28px;
+      border: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      flex: 1; padding: 8px; border-radius: 8px;
+      background: none; border: none; cursor: pointer;
+      font-family: var(--font); font-size: 13px; font-weight: 600;
+      color: var(--text-3); transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--bg-2);
+      color: var(--text);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+
+    /* Form */
+    .auth-form { display: flex; flex-direction: column; gap: 16px; }
+    .auth-form.hidden { display: none; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 12px; font-weight: 600; color: var(--text-2); letter-spacing: 0.3px; }
+
+    .field-wrap { position: relative; }
+
+    .field-input {
+      width: 100%;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px 11px 40px;
+      font-family: var(--font); font-size: 14px;
+      color: var(--text);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+
+    .field-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    }
+
+    .field-input::placeholder { color: var(--text-3); }
+
+    .field-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--text-3); pointer-events: none;
+      transition: color 0.2s;
+    }
+
+    .field-wrap:focus-within .field-icon { color: var(--blue); }
+
+    .field-eye {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: var(--text-3); padding: 2px;
+      transition: color 0.2s;
+    }
+    .field-eye:hover { color: var(--text-2); }
+
+    /* Password strength */
+    .pwd-strength { display: flex; flex-direction: column; gap: 4px; }
+    .pwd-bars { display: flex; gap: 3px; }
+    .pwd-bar { flex: 1; height: 3px; border-radius: 2px; background: var(--bg-3); transition: all 0.3s; }
+    .pwd-bar.filled-weak { background: #EF4444; }
+    .pwd-bar.filled-med { background: #F59E0B; }
+    .pwd-bar.filled-strong { background: #10B981; }
+    .pwd-hint { font-size: 11px; color: var(--text-3); }
+
+    /* Forgot password link */
+    .field-meta {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .forgot-link {
+      font-size: 12px; color: var(--blue); text-decoration: none; font-weight: 500;
+    }
+    .forgot-link:hover { text-decoration: underline; }
+
+    /* Terms */
+    .terms-check {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 12px; color: var(--text-3); line-height: 1.5;
+    }
+
+    .terms-check input[type="checkbox"] {
+      width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px;
+      accent-color: var(--blue);
+    }
+
+    .terms-check a { color: var(--blue); text-decoration: none; }
+    .terms-check a:hover { text-decoration: underline; }
+
+    /* Submit btn */
+    .btn-submit {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg, var(--blue), #2563EB);
+      border: none; border-radius: 10px;
+      font-family: var(--font); font-size: 14px; font-weight: 700;
+      color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.2s;
+      position: relative; overflow: hidden;
+    }
+
+    .btn-submit::before {
+      content: '';
+      position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+      transition: left 0.4s;
+    }
+
+    .btn-submit:hover::before { left: 100%; }
+    .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(59,130,246,0.35); }
+    .btn-submit:active { transform: translateY(0); }
+
+    /* Divider */
+    .divider {
+      display: flex; align-items: center; gap: 12px;
+      color: var(--text-3); font-size: 12px; margin: 4px 0;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* Social btns */
+    .social-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .btn-social {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px 14px;
+      background: var(--bg-3); border: 1px solid var(--border);
+      border-radius: 10px; cursor: pointer;
+      font-family: var(--font); font-size: 13px; font-weight: 600;
+      color: var(--text-2);
+      transition: all 0.2s;
+    }
+
+    .btn-social:hover {
+      border-color: var(--border-hover);
+      color: var(--text);
+      background: rgba(59,130,246,0.05);
+    }
+
+    /* Error/Success states */
+    .form-msg {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px; font-weight: 500;
+      display: none; align-items: center; gap: 8px;
+    }
+    .form-msg.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #FCA5A5; }
+    .form-msg.success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); color: #6EE7B7; }
+    .form-msg.visible { display: flex; }
+
+    /* Forgot password panel */
+    .forgot-panel {
+      display: none;
+      text-align: center;
+    }
+
+    .forgot-panel.visible { display: block; }
+
+    .forgot-icon {
+      width: 56px; height: 56px;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+    }
+
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--text-2); text-decoration: none;
+      margin-top: 16px; font-weight: 500;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--text); }
+
+    /* Footer note */
+    .auth-footer {
+      text-align: center; margin-top: 24px;
+      font-size: 12px; color: var(--text-3);
+    }
+
+    .auth-footer a { color: var(--blue); text-decoration: none; }
+
+    /* ── MOBILE ── */
+    @media (max-width: 900px) {
+      .page { grid-template-columns: 1fr; }
+      .left-panel { display: none; }
+      .right-panel { padding: 32px 24px; }
+    }
+
+    /* Animated dots */
+    .live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--success);
+      display: inline-block;
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* ── SCROLL PROGRESS ── */
+    #scroll-bar {
+      position: fixed; top: 0; left: 0; height: 2px; z-index: 999;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+      width: 0%; transition: width 0.1s linear;
+    }
+  </style>
+</head>
+<body>
+  <div id="scroll-bar"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-grid"></div>
+
+  <div class="page">
+    <!-- ── LEFT PANEL ── -->
+    <div class="left-panel">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 2L17.32 6.5V15.5L10 20L2.68 15.5V6.5L10 2Z" fill="white" opacity="0.9"/>
+            <path d="M10 7L13.46 9V13L10 15L6.54 13V9L10 7Z" fill="none" stroke="white" stroke-width="1.2" opacity="0.6"/>
+          </svg>
+        </div>
+        <span class="brand-name">Ad<span>Pilot</span></span>
+      </div>
+
+      <div class="left-content">
+        <div class="left-tagline">AI Command Center</div>
+
+        <h2 class="left-headline">
+          Your ads.<br>
+          <span class="gradient">Automated.</span><br>
+          Optimized.
+        </h2>
+
+        <p class="left-sub">
+          AdPilot handles the research, creative, campaigns, and SEO — so you can focus on growth, not grunt work.
+        </p>
+
+        <div class="stats-row">
+          <div class="stat-item">
+            <span class="stat-value">15h+</span>
+            <span class="stat-label">Saved / week</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">3.8×</span>
+            <span class="stat-label">Avg. ROAS lift</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">30%</span>
+            <span class="stat-label">Less wasted spend</span>
+          </div>
+        </div>
+
+        <div class="left-cards">
+          <div class="metric-card">
+            <div class="metric-icon blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2">
+                <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>
+              </svg>
+            </div>
+            <div class="metric-text">
+              <div class="metric-label">AI Research Agent</div>
+              <div class="metric-value">7 competitors analysed</div>
+            </div>
+            <span class="metric-badge badge-live">● LIVE</span>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+              </svg>
+            </div>
+            <div class="metric-text">
+              <div class="metric-label">Campaign Performance</div>
+              <div class="metric-value">ROAS +42% this week</div>
+            </div>
+            <span class="metric-badge badge-up">▲ 42%</span>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+            </div>
+            <div class="metric-text">
+              <div class="metric-label">SEO Keywords Tracked</div>
+              <div class="metric-value">142 ranking keywords</div>
+            </div>
+            <span class="metric-badge badge-new">NEW</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size: 12px; color: var(--text-3);">
+        <span class="live-dot"></span>&nbsp; 1,240+ teams automating their ads
+      </div>
+    </div>
+
+    <!-- ── RIGHT PANEL ── -->
+    <div class="right-panel">
+      <div class="auth-box">
+
+        <!-- TABS -->
+        <div class="auth-tabs" id="authTabs">
+          <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
+          <button class="tab-btn" onclick="switchTab('register')">Create Account</button>
+        </div>
+
+        <!-- FORM MESSAGE -->
+        <div class="form-msg" id="formMsg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span id="formMsgText"></span>
+        </div>
+
+        <!-- ── LOGIN FORM ── -->
+        <form class="auth-form" id="loginForm" onsubmit="handleLogin(event)">
+          <div class="auth-header">
+            <h1 class="auth-title">Welcome back</h1>
+            <p class="auth-sub">New to AdPilot? <a href="#" onclick="switchTab('register'); return false;">Create a free account →</a></p>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Work Email</label>
+            <div class="field-wrap">
+              <svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <input class="field-input" type="email" id="loginEmail" placeholder="you@company.com" required autocomplete="email">
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-meta">
+              <label class="field-label">Password</label>
+              <a href="#" class="forgot-link" onclick="showForgot(); return false;">Forgot password?</a>
+            </div>
+            <div class="field-wrap">
+              <svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input class="field-input" type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password" style="padding-right: 40px;">
+              <button type="button" class="field-eye" onclick="togglePwd('loginPassword', this)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-submit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+            Sign In to AdPilot
+          </button>
+
+          <div class="divider">or continue with</div>
+
+          <div class="social-row">
+            <button type="button" class="btn-social" onclick="showMsg('Google OAuth coming soon', 'error')">
+              <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              Google
+            </button>
+            <button type="button" class="btn-social" onclick="showMsg('Microsoft OAuth coming soon', 'error')">
+              <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#F35325" d="M1 1h10v10H1z"/><path fill="#81BC06" d="M13 1h10v10H13z"/><path fill="#05A6F0" d="M1 13h10v10H1z"/><path fill="#FFBA08" d="M13 13h10v10H13z"/></svg>
+              Microsoft
+            </button>
+          </div>
+        </form>
+
+        <!-- ── REGISTER FORM ── -->
+        <form class="auth-form hidden" id="registerForm" onsubmit="handleRegister(event)">
+          <div class="auth-header">
+            <h1 class="auth-title">Start for free</h1>
+            <p class="auth-sub">Already have an account? <a href="#" onclick="switchTab('login'); return false;">Sign in →</a></p>
+          </div>
+
+          <div class="form-row">
+            <div class="field">
+              <label class="field-label">First Name</label>
+              <div class="field-wrap">
+                <svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input class="field-input" type="text" placeholder="Aditya" required autocomplete="given-name">
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Last Name</label>
+              <div class="field-wrap">
+                <svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input class="field-input" type="text" placeholder="Tiwari" required autocomplete="family-name">
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Work Email</label>
+            <div class="field-wrap">
+              <svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <input class="field-input" type="email" id="regEmail" placeholder="you@company.com" required autocomplete="email">
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Company / Team Name</label>
+            <div class="field-wrap">
+              <svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+              <input class="field-input" type="text" placeholder="Acme Marketing" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Password</label>
+            <div class="field-wrap">
+              <svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input class="field-input" type="password" id="regPassword" placeholder="Min. 8 characters" required oninput="checkPwd(this.value)" style="padding-right: 40px;" autocomplete="new-password">
+              <button type="button" class="field-eye" onclick="togglePwd('regPassword', this)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+            <div class="pwd-strength" id="pwdStrength" style="display:none">
+              <div class="pwd-bars">
+                <div class="pwd-bar" id="b1"></div>
+                <div class="pwd-bar" id="b2"></div>
+                <div class="pwd-bar" id="b3"></div>
+                <div class="pwd-bar" id="b4"></div>
+              </div>
+              <span class="pwd-hint" id="pwdHint"></span>
+            </div>
+          </div>
+
+          <div class="terms-check">
+            <input type="checkbox" id="termsCheck" required>
+            <label for="termsCheck">I agree to AdPilot's <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>. I understand my data will be used to power AI features.</label>
+          </div>
+
+          <button type="submit" class="btn-submit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+            </svg>
+            Create Free Account
+          </button>
+
+          <div class="divider">or sign up with</div>
+
+          <div class="social-row">
+            <button type="button" class="btn-social">
+              <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              Google
+            </button>
+            <button type="button" class="btn-social">
+              <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#F35325" d="M1 1h10v10H1z"/><path fill="#81BC06" d="M13 1h10v10H13z"/><path fill="#05A6F0" d="M1 13h10v10H1z"/><path fill="#FFBA08" d="M13 13h10v10H13z"/></svg>
+              Microsoft
+            </button>
+          </div>
+        </form>
+
+        <!-- ── FORGOT PASSWORD PANEL ── -->
+        <div class="forgot-panel" id="forgotPanel">
+          <div class="forgot-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+            </svg>
+          </div>
+          <h2 class="auth-title" style="font-size:22px; margin-bottom:8px;">Reset password</h2>
+          <p class="auth-sub" style="margin-bottom:24px;">Enter your email and we'll send you a secure reset link. Check your spam folder if you don't see it.</p>
+
+          <form class="auth-form" style="display:flex; flex-direction:column; gap:16px;" onsubmit="handleForgot(event)">
+            <div class="field">
+              <label class="field-label">Email Address</label>
+              <div class="field-wrap">
+                <svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <input class="field-input" type="email" id="forgotEmail" placeholder="you@company.com" required>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              Send Reset Link
+            </button>
+
+            <a href="#" class="back-link" onclick="hideForgot(); return false;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
+              </svg>
+              Back to sign in
+            </a>
+          </form>
+        </div>
+
+        <div class="auth-footer">
+          Protected by 256-bit AES encryption &nbsp;·&nbsp;
+          <a href="#">Privacy Policy</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── TAB SWITCH ──
+    function switchTab(tab) {
+      const loginForm = document.getElementById('loginForm');
+      const registerForm = document.getElementById('registerForm');
+      const forgotPanel = document.getElementById('forgotPanel');
+      const tabs = document.querySelectorAll('.tab-btn');
+      const authTabs = document.getElementById('authTabs');
+      const msg = document.getElementById('formMsg');
+
+      msg.className = 'form-msg';
+      forgotPanel.classList.remove('visible');
+      authTabs.style.display = 'flex';
+
+      if (tab === 'login') {
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+        tabs[0].classList.add('active');
+        tabs[1].classList.remove('active');
+      } else {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+        tabs[1].classList.add('active');
+        tabs[0].classList.remove('active');
+      }
+    }
+
+    // ── FORGOT PASSWORD ──
+    function showForgot() {
+      document.getElementById('loginForm').classList.add('hidden');
+      document.getElementById('forgotPanel').classList.add('visible');
+      document.getElementById('authTabs').style.display = 'none';
+      document.getElementById('formMsg').className = 'form-msg';
+    }
+
+    function hideForgot() {
+      document.getElementById('forgotPanel').classList.remove('visible');
+      document.getElementById('loginForm').classList.remove('hidden');
+      document.getElementById('authTabs').style.display = 'flex';
+    }
+
+    // ── TOGGLE PASSWORD ──
+    function togglePwd(fieldId, btn) {
+      const input = document.getElementById(fieldId);
+      const isText = input.type === 'text';
+      input.type = isText ? 'password' : 'text';
+      btn.innerHTML = isText
+        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
+        : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+    }
+
+    // ── PASSWORD STRENGTH ──
+    function checkPwd(val) {
+      const el = document.getElementById('pwdStrength');
+      el.style.display = val.length ? 'flex' : 'none';
+      const bars = [1,2,3,4].map(i => document.getElementById('b'+i));
+      const hint = document.getElementById('pwdHint');
+      let strength = 0;
+      if (val.length >= 8) strength++;
+      if (/[A-Z]/.test(val)) strength++;
+      if (/[0-9]/.test(val)) strength++;
+      if (/[^A-Za-z0-9]/.test(val)) strength++;
+      bars.forEach((b, i) => {
+        b.className = 'pwd-bar';
+        if (i < strength) {
+          b.classList.add(strength <= 1 ? 'filled-weak' : strength <= 2 ? 'filled-med' : 'filled-strong');
+        }
+      });
+      hint.textContent = ['', 'Weak — add numbers/symbols', 'Fair — add uppercase or symbols', 'Good — almost there!', 'Strong password ✓'][strength];
+      hint.style.color = ['','#FCA5A5','#FCD34D','#6EE7B7','#6EE7B7'][strength];
+    }
+
+    // ── SHOW MESSAGE ──
+    function showMsg(text, type) {
+      const msg = document.getElementById('formMsg');
+      document.getElementById('formMsgText').textContent = text;
+      msg.className = 'form-msg ' + type + ' visible';
+      setTimeout(() => msg.className = 'form-msg', 4000);
+    }
+
+    // ── HANDLERS (connect to API at localhost:3000) ──
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = e.target.querySelector('.btn-submit');
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2" stroke-dasharray="4 2"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg> Signing in...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('http://localhost:3000/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('loginEmail').value,
+            password: document.getElementById('loginPassword').value
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          // Save in Zustand persist format so the React dashboard picks it up
+          const { user, accessToken, team } = data.data;
+          localStorage.setItem('adpilot_auth', JSON.stringify({
+            state: { user, token: accessToken, team: team || null },
+            version: 0
+          }));
+          showMsg('Login successful! Redirecting to dashboard...', 'success');
+          setTimeout(() => { window.location.href = 'http://localhost:5173/dashboard'; }, 1200);
+        } else {
+          showMsg(data.error?.message || 'Invalid credentials. Please try again.', 'error');
+        }
+      } catch {
+        showMsg('Cannot connect to server. Make sure the backend is running on port 3000.', 'error');
+      }
+
+      btn.innerHTML = orig;
+      btn.disabled = false;
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const btn = e.target.querySelector('.btn-submit');
+      btn.innerHTML = '⏳ Creating your account...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('http://localhost:3000/api/v1/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('regEmail').value,
+            password: document.getElementById('regPassword').value,
+            name: 'New User',
+            teamName: 'My Team'
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showMsg('Account created! Signing you in...', 'success');
+          setTimeout(() => switchTab('login'), 1500);
+        } else {
+          showMsg(data.error?.message || 'Registration failed. Please try again.', 'error');
+        }
+      } catch {
+        showMsg('Cannot connect to server. Make sure the backend is running.', 'error');
+      }
+
+      btn.innerHTML = 'Create Free Account';
+      btn.disabled = false;
+    }
+
+    async function handleForgot(e) {
+      e.preventDefault();
+      showMsg('If that email exists, a reset link has been sent. Check your inbox.', 'success');
+      setTimeout(hideForgot, 3000);
+    }
+
+    // ── SCROLL PROGRESS ──
+    window.addEventListener('scroll', () => {
+      const pct = window.scrollY / (document.body.scrollHeight - window.innerHeight) * 100;
+      document.getElementById('scroll-bar').style.width = Math.min(pct, 100) + '%';
+    }, { passive: true });
+  </script>
+</body>
+</html>
