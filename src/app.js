@@ -44,15 +44,28 @@ app.use(helmet({
 
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = process.env.ALLOWED_ORIGINS
+    const defaultOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+    ];
+    const envOrigins = process.env.ALLOWED_ORIGINS
       ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-      : ['http://localhost:5173', 'http://localhost:3000'];
+      : [];
 
-    // Allow requests with no origin (curl, Postman, mobile apps)
-    if (!origin || allowed.includes(origin)) {
+    const allowed = [...defaultOrigins, ...envOrigins];
+
+    // Allow requests with no origin (Postman, curl, server-to-server)
+    if (!origin) {
       return callback(null, true);
     }
-
+    // Allow exact matches
+    if (allowed.includes(origin)) {
+      return callback(null, true);
+    }
+    // Allow all Vercel preview deployments dynamically
+    if (origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
     logger.warn('CORS blocked request', { origin, allowed });
     return callback(new Error(`CORS: origin ${origin} not allowed`));
   },
