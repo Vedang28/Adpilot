@@ -35,7 +35,48 @@ process.on('unhandledRejection', (reason, promise) => {
 async function start() {
   logger.info('Starting AdPilot API...', { port: PORT, env: ENV });
 
-  // 1. Database
+  // 1. HTTP server FIRST — Railway/Render healthchecks hit /health within 30s.
+  //    Binding before DB/Redis ensures the liveness endpoint responds immediately
+  //    even while infrastructure connections are still being established.
+  try {
+    await new Promise((resolve, reject) => {
+      server = app.listen(PORT, '0.0.0.0', () => {
+        logger.info('Server started ✓', { port: PORT, env: ENV });
+        console.log(
+          `\n🚀 AdPilot API running on http://0.0.0.0:${PORT} [${ENV}]\n` +
+          `   Health:    http://localhost:${PORT}/health\n` +
+          `   Auth:      http://localhost:${PORT}/api/v1/auth/login\n` +
+          `   Campaigns: http://localhost:${PORT}/api/v1/campaigns\n`
+        );
+        resolve();
+      });
+
+      server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          logger.error(`HTTP SERVER ERROR — Port ${PORT} is already in use`, {
+            code: err.code,
+            port: PORT,
+            hint: `Run: lsof -ti tcp:${PORT} | xargs kill -9`,
+          });
+        } else {
+          logger.error('HTTP SERVER ERROR', {
+            message: err.message,
+            code: err.code,
+            stack: err.stack,
+          });
+        }
+        reject(err);
+      });
+    });
+  } catch (err) {
+    logger.error('FAILED TO START HTTP SERVER', {
+      message: err.message,
+      stack: err.stack,
+    });
+    process.exit(1);
+  }
+
+  // 2. Database — connect after HTTP is already accepting requests
   try {
     logger.info('Connecting to PostgreSQL...');
     await prisma.$connect();
@@ -46,12 +87,12 @@ async function start() {
       code: err.code,
       meta: err.meta,
       stack: err.stack,
-      hint: 'Check DATABASE_URL in .env and make sure Docker is running (docker ps)',
+      hint: 'Check DATABASE_URL in .env and make sure the DB is reachable',
     });
     process.exit(1);
   }
 
-  // 2. Bull queue processors
+  // 3. Bull queue processors
   try {
     logger.info('Registering Bull queue processors...');
     registerProcessors();
@@ -60,12 +101,12 @@ async function start() {
     logger.error('QUEUE PROCESSOR REGISTRATION FAILED', {
       message: err.message,
       stack: err.stack,
-      hint: 'Check Redis connection — REDIS_URL in .env and make sure Redis container is running',
+      hint: 'Check Redis connection — REDIS_URL in .env',
     });
     process.exit(1);
   }
 
-  // 3. Recurring jobs
+  // 4. Recurring jobs
   try {
     logger.info('Scheduling recurring jobs...');
     await scheduleRecurringJobs();
@@ -75,43 +116,6 @@ async function start() {
       message: err.message,
       stack: err.stack,
       hint: 'Redis may be unavailable or a job definition is broken',
-    });
-    process.exit(1);
-  }
-
-  // 4. HTTP server
-  try {
-    server = app.listen(PORT, () => {
-      logger.info('Server started ✓', { port: PORT, env: ENV });
-      console.log(
-        `\n🚀 AdPilot API running on http://localhost:${PORT} [${ENV}]\n` +
-        `   Health:    http://localhost:${PORT}/health\n` +
-        `   Auth:      http://localhost:${PORT}/api/v1/auth/login\n` +
-        `   Campaigns: http://localhost:${PORT}/api/v1/campaigns\n`
-      );
-    });
-
-    server.on('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        logger.error(`HTTP SERVER ERROR — Port ${PORT} is already in use`, {
-          code: err.code,
-          port: PORT,
-          hint: `Run: lsof -ti tcp:${PORT} | xargs kill -9`,
-        });
-      } else {
-        logger.error('HTTP SERVER ERROR', {
-          message: err.message,
-          code: err.code,
-          stack: err.stack,
-        });
-      }
-      process.exit(1);
-    });
-
-  } catch (err) {
-    logger.error('FAILED TO START HTTP SERVER', {
-      message: err.message,
-      stack: err.stack,
     });
     process.exit(1);
   }

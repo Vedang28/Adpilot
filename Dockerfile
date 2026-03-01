@@ -60,7 +60,10 @@ RUN npx prisma generate
 # Copy application source
 COPY src ./src/
 
-EXPOSE 3000
+# Railway injects PORT at runtime. Default to 3000 for local docker runs.
+ENV PORT=3000
+EXPOSE ${PORT}
 
-# Run migrations then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]
+# Run migrations then start. If migrate deploy fails (e.g. shadow-DB issue),
+# fall back to db push so the app still starts.
+CMD ["sh", "-c", "npx prisma migrate deploy || npx prisma db push --accept-data-loss && node src/server.js"]

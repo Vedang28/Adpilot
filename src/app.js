@@ -20,6 +20,7 @@ const { getRedis }     = require('./config/redis');
 const { queues }       = require('./queues');
 
 // Routes
+const healthRoutes            = require('./routes/healthRoutes');
 const authRoutes              = require('./routes/authRoutes');
 const campaignRoutes          = require('./routes/campaignRoutes');
 const adRoutes                = require('./routes/adRoutes');
@@ -36,6 +37,11 @@ const competitorRoutes        = require('./routes/competitorRoutes');
 const scalingRoutes           = require('./routes/scalingRoutes');
 
 const app = express();
+
+// ── Fast liveness check — MUST be first, before all middleware ────────────────
+// Railway / Render healthchecks hit /health within 30s of container start.
+// Mounting here ensures it responds even if DB/Redis haven't connected yet.
+app.use('/health', healthRoutes);
 
 // ── Trust proxy ───────────────────────────────────────────────────────────────
 // REQUIRED for Railway / Render / Vercel — ensures req.ip is the real client IP
@@ -162,8 +168,9 @@ if (process.env.NODE_ENV !== 'production') {
   app.get('/login.html', (req, res) => res.sendFile(path.join(ROOT, 'login.html')));
 }
 
-// ── Health endpoint ───────────────────────────────────────────────────────────
-app.get('/health', async (req, res) => {
+// ── Detailed health endpoint (DB + Redis + queues) ───────────────────────────
+// Use for monitoring dashboards. NOT used by Railway healthcheck (/health above).
+app.get('/health/detailed', async (req, res) => {
   const checks  = {};
   let   overall = 'healthy';
 
