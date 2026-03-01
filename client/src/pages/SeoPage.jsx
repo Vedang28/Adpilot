@@ -6,7 +6,11 @@ import {
   ChevronUp, ChevronDown, ChevronRight, Zap,
   CheckCircle, Clock, Activity, Globe, Link, AlertTriangle,
   Printer, Trash2, Copy, Tag,
+  Bell, Play, Pause, BarChart2,
 } from 'lucide-react';
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+} from 'recharts';
 import api from '../lib/api';
 
 // ─── Existing shared helpers (unchanged) ──────────────────────────────────────
@@ -1718,8 +1722,412 @@ function ContentBriefs() {
   );
 }
 
+// ─── Monitors Tab ─────────────────────────────────────────────────────────────
+
+function MonitorSparkline({ data }) {
+  if (!data || data.length < 2) {
+    return <div className="h-9 flex items-center justify-center text-xs text-text-secondary italic">No data yet</div>;
+  }
+  const scores = data.map((d) => d.score);
+  const min = Math.min(...scores);
+  const max = Math.max(...scores);
+  const range = Math.max(max - min, 10);
+  const W = 120, H = 36, PAD = 3;
+  const pts = scores.map((s, i) => {
+    const x = PAD + (i / (scores.length - 1)) * (W - PAD * 2);
+    const y = PAD + ((max - s) / range) * (H - PAD * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const last = scores[scores.length - 1];
+  const color = last >= 75 ? '#10B981' : last >= 55 ? '#F59E0B' : '#EF4444';
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MonitorStatusBadge({ status }) {
+  const cfg = {
+    active:  { cls: 'bg-accent-green/10 text-accent-green border-accent-green/20',  label: 'Active' },
+    paused:  { cls: 'bg-text-secondary/10 text-text-secondary border-text-secondary/20', label: 'Paused' },
+    running: { cls: 'bg-accent-blue/10 text-accent-blue border-accent-blue/20',     label: 'Running' },
+  };
+  const { cls, label } = cfg[status] ?? cfg.active;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${cls}`}>
+      {status === 'running' && <span className="w-1.5 h-1.5 rounded-full bg-accent-blue animate-pulse" />}
+      {label}
+    </span>
+  );
+}
+
+function ScoreDeltaBadge({ delta }) {
+  if (delta === null || delta === undefined) return <span className="text-xs text-text-secondary">—</span>;
+  if (delta > 0) return <span className="flex items-center gap-0.5 text-accent-green text-xs font-medium"><TrendingUp className="w-3 h-3" />+{delta}</span>;
+  if (delta < 0) return <span className="flex items-center gap-0.5 text-red-400 text-xs font-medium"><TrendingDown className="w-3 h-3" />{delta}</span>;
+  return <span className="text-xs text-text-secondary">±0</span>;
+}
+
+function AddMonitorModal({ onClose, onSuccess }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ url: '', name: '', schedule: 'weekly' });
+  const [err, setErr] = useState('');
+
+  const mut = useMutation({
+    mutationFn: (data) => api.post('/seo/monitors', data).then((r) => r.data.data),
+    onSuccess: () => {
+      qc.invalidateQueries(['monitors']);
+      onSuccess?.();
+      onClose();
+    },
+    onError: (e) => setErr(e.response?.data?.error?.message ?? 'Failed to create monitor'),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-bg-card border border-border rounded-2xl w-full max-w-md shadow-xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="font-semibold text-text-primary">Add SEO Monitor</h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">Website URL</label>
+            <input
+              className="input w-full"
+              placeholder="https://example.com"
+              value={form.url}
+              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">Monitor Name</label>
+            <input
+              className="input w-full"
+              placeholder="My Main Site"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">Check Schedule</label>
+            <select
+              className="input w-full"
+              value={form.schedule}
+              onChange={(e) => setForm((f) => ({ ...f, schedule: e.target.value }))}
+            >
+              <option value="weekly">Weekly</option>
+              <option value="daily">Daily</option>
+            </select>
+          </div>
+          {err && <p className="text-xs text-red-400">{err}</p>}
+        </div>
+        <div className="flex gap-3 px-6 py-4 border-t border-border">
+          <button className="btn-secondary flex-1" onClick={onClose}>Cancel</button>
+          <button
+            className="btn-primary flex-1"
+            disabled={!form.url || !form.name || mut.isPending}
+            onClick={() => mut.mutate(form)}
+          >
+            {mut.isPending ? 'Creating…' : 'Create Monitor'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MonitorDetailPanel({ monitor, onClose }) {
+  const qc = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['monitor-timeline', monitor.id],
+    queryFn:  () => api.get(`/seo/monitors/${monitor.id}/timeline?limit=20`).then((r) => r.data.data),
+  });
+
+  const pauseMut = useMutation({
+    mutationFn: () => api.patch(`/seo/monitors/${monitor.id}/pause`).then((r) => r.data.data),
+    onSuccess: () => qc.invalidateQueries(['monitors']),
+  });
+  const resumeMut = useMutation({
+    mutationFn: () => api.patch(`/seo/monitors/${monitor.id}/resume`).then((r) => r.data.data),
+    onSuccess: () => qc.invalidateQueries(['monitors']),
+  });
+  const runNowMut = useMutation({
+    mutationFn: () => api.post(`/seo/monitors/${monitor.id}/run-now`).then((r) => r.data.data),
+    onSuccess: () => qc.invalidateQueries(['monitors']),
+  });
+  const deleteMut = useMutation({
+    mutationFn: () => api.delete(`/seo/monitors/${monitor.id}`),
+    onSuccess: () => { qc.invalidateQueries(['monitors']); onClose(); },
+  });
+
+  const history = data?.history ?? [];
+  const chartData = history.map((h) => ({
+    date:  new Date(h.recordedAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
+    score: h.score,
+    regressions:  h.regressions,
+    improvements: h.improvements,
+  }));
+
+  const lastEntry = history[history.length - 1];
+  const lastAlerts = lastEntry?.alerts ?? monitor.latestAlerts ?? [];
+
+  return (
+    <div className="fixed inset-0 z-40 flex justify-end">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-bg-card border-l border-border w-full max-w-lg h-full overflow-y-auto shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
+          <div>
+            <h2 className="font-semibold text-text-primary">{monitor.name}</h2>
+            <p className="text-xs text-text-secondary font-mono mt-0.5 truncate max-w-xs">{monitor.url}</p>
+          </div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary ml-3 mt-0.5">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 p-6 space-y-6">
+          {/* Action bar */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <MonitorStatusBadge status={monitor.status} />
+            <span className="text-xs text-text-secondary bg-bg-secondary px-2.5 py-1 rounded-full capitalize">
+              {monitor.schedule}
+            </span>
+            <div className="flex gap-2 ml-auto">
+              <button
+                className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
+                disabled={runNowMut.isPending || monitor.status === 'running'}
+                onClick={() => runNowMut.mutate()}
+              >
+                <Play className="w-3 h-3" />
+                {runNowMut.isPending ? 'Queued' : 'Run Now'}
+              </button>
+              {monitor.status === 'paused' ? (
+                <button
+                  className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
+                  disabled={resumeMut.isPending}
+                  onClick={() => resumeMut.mutate()}
+                >
+                  <Play className="w-3 h-3 text-accent-green" />
+                  Resume
+                </button>
+              ) : (
+                <button
+                  className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
+                  disabled={pauseMut.isPending || monitor.status === 'running'}
+                  onClick={() => pauseMut.mutate()}
+                >
+                  <Pause className="w-3 h-3" />
+                  Pause
+                </button>
+              )}
+              <button
+                className="btn-secondary text-xs px-3 py-1.5 text-red-400 hover:bg-red-500/10"
+                disabled={deleteMut.isPending}
+                onClick={() => { if (confirm('Delete this monitor?')) deleteMut.mutate(); }}
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+
+          {/* Score trend chart */}
+          <div className="card">
+            <p className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-3">Score History</p>
+            {isLoading ? (
+              <div className="skeleton h-40 rounded-lg" />
+            ) : chartData.length < 2 ? (
+              <div className="h-40 flex items-center justify-center text-sm text-text-secondary">
+                <BarChart2 className="w-8 h-8 opacity-30 mr-2" />
+                Run at least 2 audits to see a trend
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={160}>
+                <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                  <CartesianGrid stroke="#1A1E2E" strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fill: '#8B92A5', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fill: '#8B92A5', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: '#141720', border: '1px solid #1E2236', borderRadius: 8 }}
+                    labelStyle={{ color: '#8B92A5', fontSize: 11 }}
+                    itemStyle={{ color: '#E8ECF4', fontSize: 12 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#3B82F6"
+                    strokeWidth={2}
+                    dot={{ fill: '#3B82F6', r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Latest alerts */}
+          {lastAlerts.length > 0 && (
+            <div className="card">
+              <p className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-3">
+                Latest Alerts ({lastAlerts.length})
+              </p>
+              <div className="space-y-2">
+                {lastAlerts.map((alert, i) => {
+                  const sev = {
+                    critical: 'text-red-400 bg-red-500/10 border-red-500/20',
+                    high:     'text-orange-400 bg-orange-500/10 border-orange-500/20',
+                    medium:   'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
+                    info:     'text-accent-green bg-accent-green/10 border-accent-green/20',
+                  }[alert.severity] ?? 'text-text-secondary bg-bg-secondary border-border';
+                  return (
+                    <div key={i} className={`border rounded-lg px-3 py-2.5 ${sev}`}>
+                      <p className="text-xs font-medium">{alert.type.replace(/_/g, ' ').toUpperCase()}</p>
+                      <p className="text-xs opacity-80 mt-0.5">{alert.message}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Regression / improvement table */}
+          {history.length > 0 && (
+            <div className="card">
+              <p className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-3">Run History</p>
+              <div className="space-y-2">
+                {[...history].reverse().slice(0, 8).map((h) => (
+                  <div key={h.id} className="flex items-center justify-between gap-3 text-xs py-1.5 border-b border-border last:border-0">
+                    <span className="text-text-secondary">
+                      {new Date(h.recordedAt).toLocaleDateString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className="font-semibold text-text-primary">{h.score}</span>
+                    <span className="text-red-400">↓{h.regressions} regr.</span>
+                    <span className="text-accent-green">↑{h.improvements} improv.</span>
+                    <span className="text-text-secondary">{(h.alerts ?? []).length} alerts</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MonitorCard({ monitor, onSelect }) {
+  const scoreDelta = monitor.scoreDelta;
+  const lastScore  = monitor.lastScore;
+  const alerts     = monitor.latestAlerts ?? [];
+  const hasAlert   = alerts.some((a) => ['critical', 'high'].includes(a.severity));
+
+  return (
+    <div
+      className={`card cursor-pointer hover:border-accent-blue/40 transition-colors ${hasAlert ? 'border-red-500/30' : ''}`}
+      onClick={() => onSelect(monitor)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onSelect(monitor)}
+    >
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-text-primary truncate">{monitor.name}</p>
+            {hasAlert && <Bell className="w-3.5 h-3.5 text-red-400 shrink-0" />}
+          </div>
+          <p className="text-xs text-text-secondary font-mono truncate mt-0.5">{monitor.url}</p>
+        </div>
+        <MonitorStatusBadge status={monitor.status} />
+      </div>
+
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-2xl font-bold text-text-primary">{lastScore ?? '—'}</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <ScoreDeltaBadge delta={scoreDelta} />
+            <span className="text-xs text-text-secondary capitalize">{monitor.schedule}</span>
+          </div>
+        </div>
+        <MonitorSparkline data={monitor.sparkline} />
+      </div>
+
+      {alerts.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-border">
+          <p className="text-xs text-text-secondary">{alerts.length} alert(s) — {alerts[0]?.message}</p>
+        </div>
+      )}
+
+      {monitor.nextRunAt && (
+        <p className="text-xs text-text-secondary mt-2">
+          Next run: {new Date(monitor.nextRunAt).toLocaleDateString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function MonitorsTab() {
+  const [showAdd, setShowAdd]         = useState(false);
+  const [selectedMonitor, setSelected] = useState(null);
+
+  const { data: monitors = [], isLoading } = useQuery({
+    queryKey: ['monitors'],
+    queryFn:  () => api.get('/seo/monitors').then((r) => r.data.data),
+  });
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-text-primary">SEO Monitors</h2>
+          <p className="text-xs text-text-secondary mt-0.5">Scheduled re-audits with regression detection</p>
+        </div>
+        <button className="btn-primary flex items-center gap-2 text-sm" onClick={() => setShowAdd(true)}>
+          <Plus className="w-4 h-4" />
+          Add Monitor
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => <div key={i} className="skeleton h-36 rounded-xl" />)}
+        </div>
+      ) : monitors.length === 0 ? (
+        <div className="card flex flex-col items-center justify-center py-16 text-center">
+          <BarChart2 className="w-12 h-12 text-text-secondary/30 mb-4" />
+          <p className="text-sm font-medium text-text-primary">No monitors yet</p>
+          <p className="text-xs text-text-secondary mt-1 max-w-xs">
+            Add a monitor to track your site's SEO score over time and get alerts on regressions.
+          </p>
+          <button className="btn-primary mt-5 flex items-center gap-2" onClick={() => setShowAdd(true)}>
+            <Plus className="w-4 h-4" />
+            Add Your First Monitor
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {monitors.map((m) => (
+            <MonitorCard key={m.id} monitor={m} onSelect={setSelected} />
+          ))}
+        </div>
+      )}
+
+      {showAdd && <AddMonitorModal onClose={() => setShowAdd(false)} />}
+      {selectedMonitor && (
+        <MonitorDetailPanel
+          monitor={selectedMonitor}
+          onClose={() => setSelected(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
-const TABS = ['Audits', 'Keywords', 'Gaps'];
+const TABS = ['Audits', 'Keywords', 'Gaps', 'Monitors'];
 
 export default function SeoPage() {
   const [activeTab, setActiveTab] = useState('Audits');
@@ -1757,6 +2165,7 @@ export default function SeoPage() {
       {activeTab === 'Audits'   && <AuditsTab />}
       {activeTab === 'Keywords' && <KeywordsTab />}
       {activeTab === 'Gaps'     && <GapsTab />}
+      {activeTab === 'Monitors' && <MonitorsTab />}
 
       <div className="border-t border-border" />
       <ContentBriefs />

@@ -35,6 +35,7 @@ const budgetProtectionRoutes  = require('./routes/budgetProtectionRoutes');
 const researchRoutes          = require('./routes/researchRoutes');
 const competitorRoutes        = require('./routes/competitorRoutes');
 const scalingRoutes           = require('./routes/scalingRoutes');
+const monitorRoutes           = require('./routes/monitorRoutes');
 
 const app = express();
 
@@ -257,6 +258,7 @@ app.use('/api/v1/auth',         authRoutes);
 app.use('/api/v1/campaigns',    campaignRoutes);
 app.use('/api/v1',              adRoutes);
 app.use('/api/v1/analytics',    analyticsRoutes);
+app.use('/api/v1/seo/monitors',  monitorRoutes);
 app.use('/api/v1/seo',          seoRoutes);
 app.use('/api/v1/rules',        ruleRoutes);
 app.use('/api/v1/integrations', integrationRoutes);

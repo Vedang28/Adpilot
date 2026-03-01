@@ -30,6 +30,7 @@ model Team {
   invites      TeamInvite[]
   auditLogs    AuditLog[]
   campaignAlerts CampaignAlert[]
+  seoMonitors  SeoMonitor[]
   @@map("teams")
 }
 
@@ -299,6 +300,45 @@ model TeamInvite {
   @@index([teamId, email])
   @@index([token])
   @@map("team_invites")
+}
+
+model SeoMonitor {
+  id          String    @id @default(uuid())
+  teamId      String    @map("team_id")
+  url         String
+  name        String
+  status      String    @default("active")  // 'active' | 'paused' | 'running'
+  schedule    String    @default("weekly")  // 'daily' | 'weekly'
+  lastAuditId String?   @map("last_audit_id")
+  lastScore   Int?      @map("last_score")
+  lastGrade   String?   @map("last_grade")
+  nextRunAt   DateTime? @map("next_run_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  team         Team           @relation(fields: [teamId], references: [id])
+  scoreHistory ScoreHistory[]
+
+  @@unique([teamId, url])
+  @@index([teamId, status])
+  @@map("seo_monitors")
+}
+
+model ScoreHistory {
+  id           String   @id @default(uuid())
+  monitorId    String   @map("monitor_id")
+  auditId      String   @map("audit_id")
+  score        Int
+  grade        String?
+  regressions  Int      @default(0)
+  improvements Int      @default(0)
+  alerts       Json     @default("[]") @db.JsonB
+  recordedAt   DateTime @default(now()) @map("recorded_at")
+
+  monitor SeoMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId, recordedAt])
+  @@map("score_history")
 }
 
 model AuditLog {

@@ -62,6 +62,7 @@ function withContext(processor) {
 // Named queues — each isolated for retry/priority tuning
 const queues = {
   seoAudit:         createQueue('seo-audit'),
+  seoMonitor:       createQueue('seo-monitor'),
   keywordSync:      createQueue('keyword-sync'),
   ruleEvaluation:   createQueue('rule-evaluation'),
   analyticsRefresh: createQueue('analytics-refresh'),
@@ -73,6 +74,7 @@ const queues = {
 // Register processors — each wrapped in ALS context
 function registerProcessors() {
   queues.seoAudit.process(1,         withContext(require('./processors/seoAuditProcessor')));
+  queues.seoMonitor.process(2,       withContext(require('./processors/seoMonitorProcessor')));
   queues.keywordSync.process(2,      withContext(require('./processors/keywordSyncProcessor')));
   queues.ruleEvaluation.process(5,   withContext(require('./processors/ruleEvaluationProcessor')));
   queues.analyticsRefresh.process(2, withContext(require('./processors/analyticsRefreshProcessor')));
@@ -97,7 +99,19 @@ async function scheduleRecurringJobs() {
       removeOnFail:     5,
     }
   );
-  logger.info('Recurring jobs scheduled: token-health-check (daily 02:00 UTC)');
+
+  // SEO monitor sweeper — runs every 4 hours, finds all due monitors and enqueues them
+  await queues.seoMonitor.add(
+    { _sweep: true },
+    {
+      repeat:           { cron: '0 */4 * * *', tz: 'UTC' },
+      jobId:            'seo-monitor-sweep',
+      removeOnComplete: 1,
+      removeOnFail:     5,
+    }
+  );
+
+  logger.info('Recurring jobs scheduled: token-health-check (daily 02:00 UTC), seo-monitor sweep (every 4h)');
 }
 
 module.exports = { queues, registerProcessors, scheduleRecurringJobs };

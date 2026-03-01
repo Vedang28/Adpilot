@@ -28,6 +28,9 @@ module.exports = {
 
     /** Whether the LLM executive summary is generated for this plan. */
     summaryEnabled:       false,
+
+    /** Max SEO monitors (recurring audit schedules). */
+    maxMonitors:          1,
   },
 
   pro: {
@@ -36,6 +39,7 @@ module.exports = {
     maxPagesPerAudit:     200,
     lighthousePagesLimit: 5,
     summaryEnabled:       true,
+    maxMonitors:          5,
   },
 
   business: {
@@ -44,5 +48,6 @@ module.exports = {
     maxPagesPerAudit:     1_000,
     lighthousePagesLimit: 10,
     summaryEnabled:       true,
+    maxMonitors:          20,
   },
 };
