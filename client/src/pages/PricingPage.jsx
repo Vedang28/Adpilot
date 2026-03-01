@@ -122,23 +122,31 @@ export default function PricingPage() {
             No percentage of ad spend. No hidden fees. Cancel anytime.
           </p>
 
-          {/* Annual toggle */}
-          <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/[0.03] border border-white/[0.06] rounded-xl">
-            <span className={`text-sm transition-colors ${!annual ? 'text-white' : 'text-white/40'}`}>Monthly</span>
+          {/* Billing toggle */}
+          <div className="inline-flex p-1 bg-white/[0.04] border border-white/[0.08] rounded-xl">
             <button
-              onClick={() => setAnnual(a => !a)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${annual ? 'bg-blue-500' : 'bg-white/20'}`}
+              onClick={() => setAnnual(false)}
+              className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+                !annual
+                  ? 'bg-white/[0.10] text-white shadow'
+                  : 'text-white/40 hover:text-white/60'
+              }`}
             >
-              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                annual ? 'translate-x-5' : 'translate-x-0.5'
-              }`} />
+              Monthly
             </button>
-            <span className={`text-sm transition-colors ${annual ? 'text-white' : 'text-white/40'}`}>
+            <button
+              onClick={() => setAnnual(true)}
+              className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+                annual
+                  ? 'bg-white/[0.10] text-white shadow'
+                  : 'text-white/40 hover:text-white/60'
+              }`}
+            >
               Annual
-              <span className="ml-1.5 text-[10px] font-bold text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-full">
-                SAVE 20%
+              <span className="text-[10px] font-bold text-green-400 bg-green-500/10 border border-green-500/20 px-1.5 py-0.5 rounded-full">
+                −20%
               </span>
-            </span>
+            </button>
           </div>
         </div>
 
