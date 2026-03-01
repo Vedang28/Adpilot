@@ -513,7 +513,7 @@ export default function LandingPage() {
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>20 AI ad generations/mo</li>
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>50 SEO keywords tracked</li>
               </ul>
-              <a href="#" className="price-btn price-btn-outline">Start Free Trial</a>
+              <Link to="/register" className="price-btn price-btn-outline">Start Free Trial</Link>
             </div>
 
             <div className="price-card pop">
@@ -529,7 +529,7 @@ export default function LandingPage() {
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>250 SEO keywords tracked</li>
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>PDF report export</li>
               </ul>
-              <a href="#" className="price-btn price-btn-fill">Get Started Now</a>
+              <Link to="/register?plan=growth" className="price-btn price-btn-fill">Get Started Now</Link>
             </div>
 
             <div className="price-card">
@@ -544,9 +544,15 @@ export default function LandingPage() {
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>White-label reports + API</li>
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>Dedicated success manager</li>
               </ul>
-              <a href="#" className="price-btn price-btn-outline">Contact Sales</a>
+              <Link to="/register?plan=scale" className="price-btn price-btn-outline">Contact Sales</Link>
             </div>
           </div>
+          <p style={{ textAlign: 'center', marginTop: '32px', fontSize: '13px', color: 'rgba(255,255,255,0.35)' }}>
+            Annual billing saves 20% · 14-day money-back guarantee ·{' '}
+            <Link to="/pricing" style={{ color: 'rgba(255,255,255,0.55)', textDecoration: 'underline' }}>
+              See full plan details →
+            </Link>
+          </p>
         </div>
       </section>
 
