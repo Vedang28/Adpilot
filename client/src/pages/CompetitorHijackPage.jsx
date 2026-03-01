@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Crosshair, Search, Target, Sparkles, CheckCircle2, ChevronRight,
-  TrendingUp, DollarSign, Key, Loader2, ExternalLink,
+  TrendingUp, DollarSign, Key, Loader2, ExternalLink, FlaskConical,
 } from 'lucide-react';
 import api from '../lib/api';
 import { useToast } from '../components/ui/Toast';
@@ -108,6 +108,19 @@ export default function CompetitorHijackPage() {
         >
           {onWaitlist ? <><CheckCircle2 className="w-4 h-4 inline mr-1.5" />On Waitlist</> : 'Join Waitlist'}
         </button>
+      </div>
+
+      {/* ── Beta banner ────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
+        <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+          <FlaskConical className="w-4 h-4 text-amber-400" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-amber-400">Beta Feature</p>
+          <p className="text-xs text-white/40 mt-0.5">
+            Competitor intelligence is in early access. Data shown is illustrative. Full Meta Ad Library integration coming soon.
+          </p>
+        </div>
       </div>
 
       {/* ── Analysis input ─────────────────────────────────────────────── */}

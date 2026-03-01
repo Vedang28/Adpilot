@@ -173,6 +173,33 @@ function CampaignCard({ campaign, expanded, onToggle, onScale }) {
             </div>
           </div>
 
+          {/* Data quality */}
+          {campaign.dataQuality && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">Data Quality</span>
+                <span className={`font-medium ${
+                  campaign.dataQuality.score >= 80 ? 'text-accent-green'
+                  : campaign.dataQuality.score >= 60 ? 'text-yellow-400'
+                  : 'text-red-400'
+                }`}>{campaign.dataQuality.label} ({campaign.dataQuality.score}%)</span>
+              </div>
+              <div className="h-1.5 bg-bg-secondary rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    campaign.dataQuality.score >= 80 ? 'bg-accent-green'
+                    : campaign.dataQuality.score >= 60 ? 'bg-yellow-400'
+                    : 'bg-red-400'
+                  }`}
+                  style={{ width: `${campaign.dataQuality.score}%` }}
+                />
+              </div>
+              {campaign.dataQuality.score < 80 && (
+                <p className="text-[11px] text-text-secondary">{campaign.dataQuality.message}</p>
+              )}
+            </div>
+          )}
+
           {/* Apply scale */}
           {campaign.score >= 50 && (
             <button

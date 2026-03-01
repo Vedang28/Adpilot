@@ -1,17 +1,27 @@
 'use strict';
 
-const budgetProtectionService = require('../services/ai/BudgetProtectionService');
-const { success, created }    = require('../common/response');
-const AppError                 = require('../common/AppError');
+const prisma         = require('../config/prisma');
+const BudgetGuardian = require('../services/budgetProtection/BudgetGuardian');
+const AppError       = require('../common/AppError');
+const { success, created } = require('../common/response');
+
+// GET /api/v1/budget-ai/scan
+exports.scan = async (req, res, next) => {
+  try {
+    const result = await BudgetGuardian.scan(req.user.teamId);
+    return success(res, result);
+  } catch (err) { next(err); }
+};
 
 // GET /api/v1/budget-ai/alerts
 exports.listAlerts = async (req, res, next) => {
   try {
-    const alerts = await budgetProtectionService.getAlerts(req.user.teamId);
+    const alerts = await prisma.campaignAlert.findMany({
+      where:   { teamId: req.user.teamId },
+      orderBy: { createdAt: 'desc' },
+    });
     return success(res, { alerts });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 // POST /api/v1/budget-ai/alerts
@@ -19,11 +29,11 @@ exports.createAlert = async (req, res, next) => {
   try {
     const { campaignId, alertType, threshold, action, actionValue } = req.body;
 
-    if (!campaignId || !alertType || threshold == null || !action) {
-      throw AppError.badRequest('campaignId, alertType, threshold, and action are required');
+    if (!alertType || threshold === undefined || !action) {
+      throw AppError.badRequest('alertType, threshold, and action are required');
     }
 
-    const VALID_TYPES   = ['roas_drop', 'ctr_collapse', 'cpa_spike', 'budget_bleed'];
+    const VALID_TYPES   = ['roas_drop', 'ctr_drop', 'cpa_spike', 'spend_limit'];
     const VALID_ACTIONS = ['pause', 'notify', 'reduce_budget'];
 
     if (!VALID_TYPES.includes(alertType)) {
@@ -33,45 +43,65 @@ exports.createAlert = async (req, res, next) => {
       throw AppError.badRequest(`action must be one of: ${VALID_ACTIONS.join(', ')}`);
     }
 
-    const alert = await budgetProtectionService.createAlert(req.user.teamId, {
-      campaignId, alertType, threshold, action, actionValue,
+    const alert = await prisma.campaignAlert.create({
+      data: {
+        teamId:      req.user.teamId,
+        campaignId:  campaignId ?? null,
+        alertType,
+        threshold:   parseFloat(threshold),
+        action,
+        actionValue: actionValue !== undefined ? parseFloat(actionValue) : null,
+      },
     });
 
     return created(res, { alert });
-  } catch (err) {
-    if (err.message === 'Campaign not found') return next(AppError.notFound('Campaign not found'));
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 // PATCH /api/v1/budget-ai/alerts/:id
 exports.updateAlert = async (req, res, next) => {
   try {
-    const alert = await budgetProtectionService.updateAlert(req.user.teamId, req.params.id, req.body);
+    const existing = await prisma.campaignAlert.findFirst({
+      where: { id: req.params.id, teamId: req.user.teamId },
+    });
+    if (!existing) throw AppError.notFound('Alert rule not found');
+
+    const alert = await prisma.campaignAlert.update({
+      where: { id: req.params.id },
+      data:  {
+        isActive:    req.body.isActive    ?? existing.isActive,
+        threshold:   req.body.threshold   !== undefined
+                       ? parseFloat(req.body.threshold)
+                       : existing.threshold,
+        action:      req.body.action      ?? existing.action,
+        actionValue: req.body.actionValue !== undefined
+                       ? parseFloat(req.body.actionValue)
+                       : existing.actionValue,
+      },
+    });
+
     return success(res, { alert });
-  } catch (err) {
-    if (err.message === 'Alert not found') return next(AppError.notFound('Alert not found'));
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 // DELETE /api/v1/budget-ai/alerts/:id
 exports.deleteAlert = async (req, res, next) => {
   try {
-    await budgetProtectionService.deleteAlert(req.user.teamId, req.params.id);
-    return res.status(204).end();
-  } catch (err) {
-    if (err.message === 'Alert not found') return next(AppError.notFound('Alert not found'));
-    next(err);
-  }
+    const existing = await prisma.campaignAlert.findFirst({
+      where: { id: req.params.id, teamId: req.user.teamId },
+    });
+    if (!existing) throw AppError.notFound('Alert rule not found');
+
+    await prisma.campaignAlert.delete({ where: { id: req.params.id } });
+    return success(res, { deleted: true });
+  } catch (err) { next(err); }
 };
 
-// GET /api/v1/budget-ai/scan
-exports.scan = async (req, res, next) => {
+// GET /api/v1/budget-ai/campaign/:id
+exports.analyzeCampaign = async (req, res, next) => {
   try {
-    const result = await budgetProtectionService.scanTeam(req.user.teamId);
+    const result = await BudgetGuardian.analyzeCampaign(req.params.id, req.user.teamId);
+    if (!result) throw AppError.notFound('Campaign not found');
     return success(res, result);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };

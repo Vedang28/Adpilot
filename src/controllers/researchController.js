@@ -71,7 +71,11 @@ exports.hijackAnalysis = async (req, res, next) => {
     if (!domain) throw AppError.badRequest('domain query param is required');
 
     const analysis = await competitorHijackService.analyzeCompetitor(domain, req.user.teamId);
-    return success(res, analysis);
+    return success(res, {
+      ...analysis,
+      isBeta:     true,
+      disclaimer: 'Data is illustrative pending Meta Ad Library integration',
+    });
   } catch (err) {
     next(err);
   }

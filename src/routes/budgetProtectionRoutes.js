@@ -13,7 +13,10 @@ router.post('/alerts',          requireRole('admin', 'manager'), ctrl.createAler
 router.patch('/alerts/:id',     requireRole('admin', 'manager'), ctrl.updateAlert);
 router.delete('/alerts/:id',    requireRole('admin', 'manager'), ctrl.deleteAlert);
 
-// Mock scan
+// Real scan using BudgetGuardian
 router.get('/scan', ctrl.scan);
+
+// Per-campaign health analysis
+router.get('/campaign/:id', ctrl.analyzeCampaign);
 
 module.exports = router;

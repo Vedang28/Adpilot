@@ -1,8 +1,8 @@
 'use strict';
 
-const scalingPredictorService = require('../services/ai/ScalingPredictorService');
-const { success }             = require('../common/response');
-const AppError                 = require('../common/AppError');
+const ScalingAnalyzer = require('../services/scaling/ScalingAnalyzer');
+const AppError        = require('../common/AppError');
+const { success }     = require('../common/response');
 
 // GET /api/v1/scaling/readiness?campaignId=X
 exports.getCampaignReadiness = async (req, res, next) => {
@@ -10,20 +10,16 @@ exports.getCampaignReadiness = async (req, res, next) => {
     const { campaignId } = req.query;
     if (!campaignId) throw AppError.badRequest('campaignId query param is required');
 
-    const result = await scalingPredictorService.predictScaleReadiness(campaignId, req.user.teamId);
+    const result = await ScalingAnalyzer.analyze(campaignId, req.user.teamId);
+    if (!result) throw AppError.notFound('Campaign not found');
     return success(res, result);
-  } catch (err) {
-    if (err.message === 'Campaign not found') return next(AppError.notFound('Campaign not found'));
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 // GET /api/v1/scaling/all-campaigns
 exports.getAllCampaignsReadiness = async (req, res, next) => {
   try {
-    const campaigns = await scalingPredictorService.getAllCampaignsReadiness(req.user.teamId);
+    const campaigns = await ScalingAnalyzer.analyzeAll(req.user.teamId);
     return success(res, { campaigns });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };

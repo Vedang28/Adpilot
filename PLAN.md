@@ -30,6 +30,7 @@ Frontend: React 18 / Vite / Tailwind / React Query / Zustand / Recharts.
 | **12** | **C15: Killer Feature Stubs + Sidebar** | **✅ Complete** |
 | **13** | **Phase D: Killer Features Mock Demo Mode** | **✅ Complete** |
 | **14** | **Phase H: Sellability Sprint** | **✅ Complete** |
+| **15** | **Phase J: Real Engine Implementation** | **✅ Complete** |
 | 9 | Payments / billing integration | ⏳ Pending |
 | 10 | Production deployment | ⏳ Pending |
 
@@ -181,6 +182,41 @@ Commit: `efcfd66c`
 | H7 Dashboard refresh | ✅ | Greeting, quick action cards, activity feed |
 | H8.1 index.html meta tags | ✅ | New title, description, og:title, og:description, twitter:card |
 | H8.2 LAUNCH.md | ✅ | Product Hunt launch kit: taglines, description, topics, first comment, checklists |
+
+---
+
+### Phase J — Real Engine Implementation ✅ Complete
+
+| Sub-task | Status | Notes |
+|----------|--------|-------|
+| J1 Budget Guardian | ✅ | `src/services/budgetProtection/BudgetGuardian.js` — real scan, _autoDetect (ROAS<1.0→critical, CTR<0.5%→warning, budget exceeded), _evaluateRule for user rules |
+| J1.2 Budget controller | ✅ | Replaced mock BudgetProtectionService with real BudgetGuardian; campaignId now optional in createAlert |
+| J1.3 Budget routes | ✅ | Added `GET /budget-ai/campaign/:id` for per-campaign health analysis |
+| J1.4 Demo campaigns | ✅ | Updated DEMO_CAMPAIGNS: Summer Sale ROAS=0.8 (critical), Brand Awareness CTR=0.3% (warning), Retargeting ROAS=6.1 (healthy), Q4 Lead Gen with all perf fields |
+| J2 Scaling Analyzer | ✅ | `src/services/scaling/ScalingAnalyzer.js` — 5 real factors (ROAS 30%, CTR 20%, Budget Util 20%, CPA 15%, Data Volume 15%), weighted average, dataQuality assessment |
+| J2.2 Scaling controller | ✅ | Replaced mock ScalingPredictorService with real ScalingAnalyzer |
+| J3 Competitor beta labels | ✅ | Amber beta banner on CompetitorHijackPage.jsx + ResearchPage.jsx Competitors tab; isBeta+disclaimer fields in researchController |
+| J4 Scaling UI dataQuality | ✅ | Added dataQuality progress bar + label in ScalingPredictorPage expanded panel |
+
+**New files:**
+- `src/services/budgetProtection/BudgetGuardian.js`
+- `src/services/scaling/ScalingAnalyzer.js`
+
+**Updated files:**
+- `src/controllers/budgetProtectionController.js` — real BudgetGuardian
+- `src/controllers/scalingController.js` — real ScalingAnalyzer
+- `src/controllers/demoController.js` — realistic performance data
+- `src/controllers/researchController.js` — isBeta + disclaimer
+- `src/routes/budgetProtectionRoutes.js` — /campaign/:id route
+- `client/src/pages/CompetitorHijackPage.jsx` — beta banner
+- `client/src/pages/ResearchPage.jsx` — beta banner on competitors tab
+- `client/src/pages/ScalingPredictorPage.jsx` — dataQuality indicator
+
+**Demo will now show:**
+- 1 critical alert (Summer Sale ROAS 0.8x — losing money)
+- 1 warning (Brand Awareness CTR 0.3% — too low)
+- Varied scaling scores per campaign (Retargeting scores highest, Summer Sale lowest)
+- No mock/random numbers anywhere
 
 ---
 
@@ -359,7 +395,7 @@ Remaining:
 ## 5. Progress
 
 ```
-Overall:  ████████████████████████████░░  88%
+Overall:  █████████████████████████████░░  94%
 
 Stage 1 (Backend):     ██████████  100%
 Stage 2 (Frontend):    ██████████  100%
@@ -374,9 +410,9 @@ Phase 3 (Keywords):    ██████████  100%  ✅
 Phase C (UI Polish):   ██████████  100%  ✅
 C14 (Dash/Analytics):  ██████████  100%  ✅
 C15 (Feature Stubs):   ██████████  100%  ✅
-Budget AI (D1):        ████░░░░░░   40%  (mock done, real Meta/Google APIs pending)
-Competitor Intel (D2): ███░░░░░░░   35%  (mock done, real Ad Library API pending)
-Scaling AI (D3):       ████░░░░░░   40%  (mock done, real metric history pending)
+Budget AI (D1):        ████████░░   80%  (real engine, real alerts, Meta/Google APIs pending)
+Competitor Intel (D2): ███░░░░░░░   35%  (mock/beta labeled, real Ad Library API pending)
+Scaling AI (D3):       ████████░░   80%  (real engine, real scores, metric history pending)
 Stage 8 (Billing):     ░░░░░░░░░░    0%
 Stage 9 (Deploy):      ░░░░░░░░░░    0%
 ```

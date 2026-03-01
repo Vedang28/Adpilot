@@ -6,20 +6,42 @@ const jwt      = require('jsonwebtoken');
 const { success } = require('../common/response');
 const logger   = require('../config/logger');
 
-// Campaign metrics go inside the `performance` Json column
+// Campaign metrics go inside the `performance` Json column.
+// Values chosen to trigger realistic Budget Protection alerts and varied Scaling scores.
 const DEMO_CAMPAIGNS = [
-  { name: 'Summer Sale — Meta',          platform: 'Meta',   status: 'active',
+  {
+    name: 'Summer Sale — Meta', platform: 'Meta', status: 'active',
     budget: 500, budgetType: 'daily',
-    performance: { spend: 1240.50, roas: 4.2, clicks: 4200, impressions: 87000, ctr: 4.83 } },
-  { name: 'Brand Awareness — Google',    platform: 'Google', status: 'paused',
+    performance: {
+      spend: 1240.50, roas: 0.8,   // BELOW BREAKEVEN — triggers critical alert
+      ctr: 2.1, clicks: 4200, impressions: 87000, cpa: 45.20,
+    },
+  },
+  {
+    name: 'Brand Awareness — Google', platform: 'Google', status: 'active',
     budget: 200, budgetType: 'daily',
-    performance: { spend: 3100, roas: 2.8, clicks: 9800, impressions: 210000, ctr: 4.67 } },
-  { name: 'Retargeting — Both Platforms',platform: 'Both',   status: 'active',
-    budget: 75,  budgetType: 'daily',
-    performance: { spend: 540,  roas: 6.1, clicks: 2100, impressions: 45000,  ctr: 4.67 } },
-  { name: 'Q4 Lead Gen — Google',        platform: 'Google', status: 'draft',
+    performance: {
+      spend: 3100, roas: 2.8,
+      ctr: 0.3,   // BELOW 0.5% — triggers CTR warning
+      clicks: 9800, impressions: 210000, cpa: 12.40,
+    },
+  },
+  {
+    name: 'Retargeting — Both Platforms', platform: 'Both', status: 'active',
+    budget: 75, budgetType: 'daily',
+    performance: {
+      spend: 540, roas: 6.1,  // HEALTHY — no auto alerts
+      ctr: 4.67, clicks: 2100, impressions: 45000, cpa: 8.20,
+    },
+  },
+  {
+    name: 'Q4 Lead Gen — Google', platform: 'Google', status: 'active',
     budget: 300, budgetType: 'daily',
-    performance: {} },
+    performance: {
+      spend: 890, roas: 1.2,
+      ctr: 1.8, clicks: 3200, impressions: 67000, cpa: 28.50,
+    },
+  },
 ];
 
 const DEMO_NOTIFICATIONS = [
