@@ -115,6 +115,49 @@ Frontend: React 18 / Vite / Tailwind / React Query / Zustand / Recharts.
 
 ---
 
+### Phase F — SEO Monitoring Engine ✅ Complete
+
+Commit: `efcfd66c`
+
+#### F1 — DB Schema
+- `SeoMonitor` model: teamId, url, name, status (active/paused/running), schedule (daily/weekly), lastAuditId, lastScore, lastGrade, nextRunAt
+- `ScoreHistory` model: monitorId, auditId, score, grade, regressions, improvements, alerts (Json)
+- `seoMonitors SeoMonitor[]` added to Team model
+- `maxMonitors` added to limits.js: starter:1, pro:5, business:20
+- Applied via `npx prisma db push`
+
+#### F2 — MonitoringEngine Service
+- `src/services/seo/monitoring/MonitoringEngine.js`
+- Methods: scheduleMonitor (plan-enforced limit), getMonitorDashboard (7-point sparkline data), getMonitorTimeline, pauseMonitor, resumeMonitor, deleteMonitor, updateMonitor, getDueMonitors, recordResult, recordFailure
+
+#### F3 — RegressionDetector
+- `src/services/seo/monitoring/RegressionDetector.js`
+- Fingerprint = `ruleId::url` — compares issue sets between two audits
+- Returns: { regressions[], improvements[], unchanged } — sorted by severity
+
+#### F4 — AlertEvaluator
+- `src/services/seo/monitoring/AlertEvaluator.js`
+- 6 priority-ordered rules: score_crash (≥15pt drop/critical), score_drop (≥5pt/high), critical_regression, security_regression, downward_trend (3 consecutive drops/medium), score_improvement (≥10pt/info)
+- Returns { alerts[], highestSeverity }
+
+#### F5 — Queue
+- `seoMonitor` queue added to `src/queues/index.js`
+- `seoMonitorProcessor.js` — dual mode: _sweep (find all due monitors → enqueue individual jobs) + single-monitor run (AuditOrchestrator or legacy, then RegressionDetector + AlertEvaluator + notifications + MonitoringEngine.recordResult)
+- Recurring cron: sweep every 4 hours (`0 */4 * * *`)
+
+#### F6 — API Routes
+- 8 endpoints: GET /monitors, POST /monitors, PATCH /:id, DELETE /:id, PATCH /:id/pause, PATCH /:id/resume, GET /:id/timeline, POST /:id/run-now
+- Mounted at `/api/v1/seo/monitors` BEFORE `/api/v1/seo` to avoid prefix ambiguity
+
+#### F7 — Frontend
+- Added 'Monitors' tab to SeoPage.jsx (4th tab after Audits/Keywords/Gaps)
+- `MonitorSparkline` — pure SVG polyline from score history points
+- `MonitorCard` — score, delta badge (TrendingUp/Down), sparkline, alert bell, status badge, next run time
+- `AddMonitorModal` — url, name, schedule select
+- `MonitorDetailPanel` — side panel with Recharts LineChart (score trend), run history table, alert cards, action buttons (run-now, pause/resume, delete)
+
+---
+
 ### Phase E — Next Sprint
 
 | Task | Description |
