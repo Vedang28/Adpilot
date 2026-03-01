@@ -45,45 +45,62 @@ class KeywordTrackingService {
 
   /**
    * Fetch all keywords for a team, enriched with opportunity score + rank change.
+   * Flattens rankChange into top-level fields (change, trend, ema) for frontend compatibility.
    */
   async getKeywords(teamId, { page = 1, limit = 50 } = {}) {
     const skip = (page - 1) * limit;
     const [keywords, total] = await Promise.all([
       prisma.keyword.findMany({
-        where: { teamId },
+        where:   { teamId, isActive: true },
         orderBy: { searchVolume: 'desc' },
         skip,
-        take: limit,
+        take:    limit,
       }),
-      prisma.keyword.count({ where: { teamId } }),
+      prisma.keyword.count({ where: { teamId, isActive: true } }),
     ]);
 
-    const enriched = keywords.map((kw) => ({
-      ...kw,
-      opportunityScore: KeywordTrackingService.opportunityScore(kw),
-      rankChange: KeywordTrackingService.detectRankChange(kw),
-    }));
+    const enriched = keywords.map((kw) => {
+      const rankChange = KeywordTrackingService.detectRankChange(kw);
+      return {
+        ...kw,
+        volume:          kw.searchVolume,          // alias for frontend
+        opportunityScore: KeywordTrackingService.opportunityScore(kw),
+        rankChange,
+        change:          rankChange.change,        // flattened
+        trend:           rankChange.trend,
+        ema:             rankChange.ema,
+      };
+    });
 
     return { items: enriched, total };
   }
 
   /**
    * Simulate a rank update (in production: call SerpAPI / scraper).
-   * Saves previousRank → currentRank rotation.
+   * Saves previousRank → currentRank rotation and writes a KeywordRank history record.
    */
   async syncRanks(teamId) {
-    const keywords = await prisma.keyword.findMany({ where: { teamId } });
+    const keywords = await prisma.keyword.findMany({ where: { teamId, isActive: true } });
     const updates  = [];
+    const now      = new Date();
 
     for (const kw of keywords) {
-      // Stub: simulate ±3 rank drift — replace with real SERP call
-      const drift      = Math.round((Math.random() - 0.5) * 6);
-      const newRank    = kw.currentRank ? Math.max(1, kw.currentRank + drift) : null;
-      const updated    = await prisma.keyword.update({
-        where: { id: kw.id },
-        data:  { previousRank: kw.currentRank, currentRank: newRank, lastCheckedAt: new Date() },
-      });
-      updates.push({ id: updated.id, keyword: updated.keyword, newRank, drift });
+      // Stub: simulate ±3 rank drift — replace with real SERP call in production
+      const drift   = Math.round((Math.random() - 0.5) * 6);
+      const newRank = kw.currentRank ? Math.max(1, kw.currentRank + drift) : null;
+
+      // Atomically update keyword + append rank history snapshot
+      await prisma.$transaction([
+        prisma.keyword.update({
+          where: { id: kw.id },
+          data:  { previousRank: kw.currentRank, currentRank: newRank, lastCheckedAt: now },
+        }),
+        ...(newRank !== null
+          ? [prisma.keywordRank.create({ data: { keywordId: kw.id, teamId, rank: newRank, recordedAt: now } })]
+          : []),
+      ]);
+
+      updates.push({ id: kw.id, keyword: kw.keyword, newRank, drift });
     }
 
     logger.info('Keyword ranks synced', { teamId, count: updates.length });

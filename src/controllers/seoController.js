@@ -3,6 +3,8 @@
 const prisma              = require('../config/prisma');
 const seoAuditService     = require('../services/seo/SeoAuditService');
 const keywordService      = require('../services/seo/KeywordTrackingService');
+const KeywordService      = require('../services/keywords/KeywordService');
+const KeywordDiscovery    = require('../services/keywords/KeywordDiscoveryService');
 const competitorService   = require('../services/seo/CompetitorGapService');
 const contentBriefService = require('../services/seo/ContentBriefService');
 const { queues }          = require('../queues');
@@ -377,6 +379,86 @@ exports.syncKeywords = async (req, res, next) => {
   try {
     const job = await queues.keywordSync.add({ teamId: req.user.teamId });
     return success(res, { jobId: job.id, message: 'Keyword sync queued' });
+  } catch (err) { next(err); }
+};
+
+/**
+ * POST /api/v1/seo/keywords
+ * Add a keyword to the team's tracking list.
+ * Body: { keyword (required), trackedUrl?, searchVolume?, difficulty?, source? }
+ */
+exports.createKeyword = async (req, res, next) => {
+  try {
+    const { keyword, trackedUrl, searchVolume, difficulty, source } = req.body;
+
+    if (!keyword || typeof keyword !== 'string' || !keyword.trim()) {
+      throw AppError.badRequest('keyword is required');
+    }
+    if (keyword.trim().length > 200) {
+      throw AppError.badRequest('keyword must be 200 characters or fewer');
+    }
+    if (searchVolume !== undefined && (typeof searchVolume !== 'number' || searchVolume < 0)) {
+      throw AppError.badRequest('searchVolume must be a non-negative number');
+    }
+    if (difficulty !== undefined && (typeof difficulty !== 'number' || difficulty < 0 || difficulty > 100)) {
+      throw AppError.badRequest('difficulty must be between 0 and 100');
+    }
+
+    const kw = await KeywordService.createKeyword(req.user.teamId, req.user.userId, {
+      keyword, trackedUrl, searchVolume, difficulty, source,
+    });
+    return created(res, kw);
+  } catch (err) { next(err); }
+};
+
+/**
+ * DELETE /api/v1/seo/keywords/:id
+ * Remove a tracked keyword (team-scoped).
+ */
+exports.deleteKeyword = async (req, res, next) => {
+  try {
+    await KeywordService.deleteKeyword(req.params.id, req.user.teamId);
+    return res.status(204).end();
+  } catch (err) { next(err); }
+};
+
+/**
+ * POST /api/v1/seo/keywords/discover-from-audit
+ * Extract keyword suggestions from a completed SEO audit.
+ * Body: { auditId (required) }
+ */
+exports.discoverFromAudit = async (req, res, next) => {
+  try {
+    const { auditId } = req.body;
+    if (!auditId) throw AppError.badRequest('auditId is required');
+
+    const suggestions = await KeywordDiscovery.discoverFromAudit(auditId, req.user.teamId);
+    return success(res, { suggestions });
+  } catch (err) { next(err); }
+};
+
+/**
+ * GET /api/v1/seo/keywords/:id/history
+ * Returns rank history (up to 30 data points) for a single keyword.
+ */
+exports.getKeywordHistory = async (req, res, next) => {
+  try {
+    const { id }     = req.params;
+    const { teamId } = req.user;
+
+    const kw = await prisma.keyword.findFirst({ where: { id, teamId }, select: { id: true } });
+    if (!kw) throw AppError.notFound('Keyword');
+
+    const records = await prisma.keywordRank.findMany({
+      where:   { keywordId: id },
+      orderBy: { recordedAt: 'asc' },
+      take:    30,
+      select:  { rank: true, recordedAt: true },
+    });
+
+    return success(res, {
+      history: records.map((r) => ({ rank: r.rank, date: r.recordedAt })),
+    });
   } catch (err) { next(err); }
 };
 

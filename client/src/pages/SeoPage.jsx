@@ -1037,13 +1037,197 @@ function AuditsTab() {
   );
 }
 
-// ─── Keywords Tab (unchanged) ─────────────────────────────────────────────────
+// ─── Add Keyword Modal ─────────────────────────────────────────────────────────
+function AddKeywordModal({ onClose, onSaved, audits }) {
+  const [keyword,     setKeyword]     = useState('');
+  const [trackedUrl,  setTrackedUrl]  = useState('');
+  const [discoverUrl, setDiscoverUrl] = useState('');
+  const [suggestions, setSuggestions] = useState(null);  // null = not fetched yet
+  const [discoverOpen, setDiscoverOpen] = useState(false);
+  const [discoverLoading, setDiscoverLoading] = useState(false);
+  const [discoverErr, setDiscoverErr] = useState('');
+
+  const createMutation = useMutation({
+    mutationFn: (data) => api.post('/seo/keywords', data),
+    onSuccess:  () => onSaved(),
+  });
+
+  const handleDiscover = async () => {
+    setDiscoverErr('');
+    setSuggestions(null);
+    setDiscoverLoading(true);
+    try {
+      // Find the most recent completed audit for the given URL
+      const matched = (audits ?? []).find(
+        (a) => a.url === discoverUrl.trim() && (a.status === 'completed' || a.status === 'complete')
+      );
+      if (!matched) {
+        setDiscoverErr('No completed audit found for this URL. Run an audit first.');
+        setDiscoverLoading(false);
+        return;
+      }
+      const res = await api.post('/seo/keywords/discover-from-audit', { auditId: matched.id });
+      setSuggestions(res.data.data?.suggestions ?? []);
+    } catch (e) {
+      setDiscoverErr(e.response?.data?.error?.message || 'Discovery failed.');
+    }
+    setDiscoverLoading(false);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!keyword.trim()) return;
+    createMutation.mutate({
+      keyword: keyword.trim(),
+      trackedUrl: trackedUrl.trim() || undefined,
+    });
+  };
+
+  const errMsg = createMutation.error?.response?.data?.error?.message || createMutation.error?.message;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-bg-card border border-border rounded-xl shadow-2xl w-full max-w-md">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+          <h3 className="text-base font-semibold text-text-primary">Add Keyword</h3>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Keyword input */}
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">
+              Keyword <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="text"
+              className="input-field w-full"
+              placeholder="e.g. seo audit tool"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              maxLength={200}
+              required
+            />
+          </div>
+
+          {/* Tracked URL */}
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">
+              Tracked URL <span className="text-text-secondary font-normal">(optional)</span>
+            </label>
+            <input
+              type="url"
+              className="input-field w-full"
+              placeholder="https://example.com"
+              value={trackedUrl}
+              onChange={(e) => setTrackedUrl(e.target.value)}
+            />
+          </div>
+
+          {/* Discover from audit — collapsible */}
+          <div className="border border-border rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setDiscoverOpen((v) => !v)}
+              className="w-full flex items-center gap-2 px-4 py-3 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-secondary/40 transition-colors text-left"
+            >
+              <Zap className="w-3.5 h-3.5 text-accent-blue shrink-0" />
+              Discover suggestions from audit
+              <ChevronDown className={`w-3.5 h-3.5 ml-auto transition-transform ${discoverOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {discoverOpen && (
+              <div className="px-4 pb-4 pt-1 space-y-3 border-t border-border bg-bg-secondary/20">
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    className="input-field flex-1 text-xs"
+                    placeholder="https://example.com"
+                    value={discoverUrl}
+                    onChange={(e) => setDiscoverUrl(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleDiscover}
+                    disabled={discoverLoading || !discoverUrl.trim()}
+                    className="btn-secondary text-xs px-3 whitespace-nowrap"
+                  >
+                    {discoverLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Discover'}
+                  </button>
+                </div>
+
+                {discoverErr && (
+                  <p className="text-red-400 text-xs flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />{discoverErr}
+                  </p>
+                )}
+
+                {suggestions !== null && (
+                  suggestions.length === 0
+                    ? <p className="text-text-secondary text-xs">No suggestions found in that audit.</p>
+                    : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {suggestions.map((s) => (
+                          <button
+                            key={s.keyword}
+                            type="button"
+                            onClick={() => setKeyword(s.keyword)}
+                            className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                              keyword === s.keyword
+                                ? 'bg-accent-blue/15 border-accent-blue/40 text-accent-blue'
+                                : 'border-border text-text-secondary hover:border-accent-blue/40 hover:text-text-primary'
+                            }`}
+                          >
+                            {s.keyword}
+                          </button>
+                        ))}
+                      </div>
+                    )
+                )}
+              </div>
+            )}
+          </div>
+
+          {errMsg && (
+            <p className="text-red-400 text-xs flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />{errMsg}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-3 pt-1">
+            <button type="button" onClick={onClose} className="btn-secondary text-sm px-4">Cancel</button>
+            <button
+              type="submit"
+              disabled={createMutation.isPending || !keyword.trim()}
+              className="btn-primary text-sm px-4"
+            >
+              {createMutation.isPending ? 'Adding…' : 'Add Keyword'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Keywords Tab ──────────────────────────────────────────────────────────────
 function KeywordsTab() {
   const queryClient = useQueryClient();
+  const [showAddModal,    setShowAddModal]    = useState(false);
+  const [confirmDeleteKw, setConfirmDeleteKw] = useState(null); // keyword object | null
 
   const { data: keywords, isLoading, error } = useQuery({
     queryKey: ['seo', 'keywords'],
     queryFn:  () => api.get('/seo/keywords').then((r) => r.data.data),
+  });
+
+  // Fetch audit list so the discover modal can match URL → auditId
+  const { data: audits } = useQuery({
+    queryKey: ['seo', 'audits'],
+    queryFn:  () => api.get('/seo/audits').then((r) => r.data.data),
   });
 
   const syncMutation = useMutation({
@@ -1051,47 +1235,115 @@ function KeywordsTab() {
     onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['seo', 'keywords'] }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/seo/keywords/${id}`),
+    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['seo', 'keywords'] }),
+  });
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending} className="btn-secondary flex items-center gap-2">
-          <RefreshCw className={`w-4 h-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-          {syncMutation.isPending ? 'Syncing…' : 'Sync Ranks'}
-        </button>
+      {/* Action bar */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          {syncMutation.isSuccess && <span className="text-accent-green text-xs">Synced!</span>}
+          {syncMutation.error && <span className="text-red-400 text-xs">Sync failed.</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn-primary flex items-center gap-2 text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add Keyword
+          </button>
+          <button
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            className="btn-secondary flex items-center gap-2 text-sm"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            {syncMutation.isPending ? 'Syncing…' : 'Sync Ranks'}
+          </button>
+        </div>
       </div>
-      {syncMutation.isSuccess && <p className="text-accent-green text-sm">Ranks synced successfully.</p>}
-      {syncMutation.error && <p className="text-red-400 text-sm">{syncMutation.error?.response?.data?.error?.message || 'Sync failed.'}</p>}
 
+      {/* Keyword table */}
       <div className="card p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-bg-secondary/50">
-                {['Keyword', 'Volume', 'Difficulty', 'Current Rank', 'Change', 'Opportunity'].map((h) => (
+                {['Keyword', 'Volume', 'Difficulty', 'Rank', 'Change', 'Opportunity', ''].map((h) => (
                   <th key={h} className="text-left text-text-secondary font-medium px-5 py-3.5 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {isLoading ? [...Array(6)].map((_, i) => <SkeletonRow key={i} cols={6} />) :
+              {isLoading ? [...Array(6)].map((_, i) => <SkeletonRow key={i} cols={7} />) :
                error ? (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-red-400 text-sm"><AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-60" />Failed to load keywords.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-red-400 text-sm">
+                  <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-60" />
+                  Failed to load keywords.
+                </td></tr>
                ) : !keywords?.length ? (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-text-secondary text-sm">No keywords tracked yet.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-text-secondary text-sm">
+                  No keywords tracked yet. Click <strong className="text-text-primary">Add Keyword</strong> to start.
+                </td></tr>
                ) : keywords.map((kw) => (
-                <tr key={kw.id || kw.keyword} className="hover:bg-bg-secondary/30 transition-colors">
-                  <td className="px-5 py-3.5 font-medium text-text-primary max-w-[200px] truncate">{kw.keyword}</td>
-                  <td className="px-5 py-3.5 text-text-secondary whitespace-nowrap">{Number(kw.volume || 0).toLocaleString()}</td>
+                <tr key={kw.id} className="group hover:bg-bg-secondary/30 transition-colors">
+                  <td className="px-5 py-3.5 font-medium text-text-primary max-w-[200px]">
+                    <span className="truncate block">{kw.keyword}</span>
+                    {kw.trackedUrl && (
+                      <span className="text-xs text-text-secondary truncate block max-w-[180px]">{kw.trackedUrl}</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3.5 text-text-secondary whitespace-nowrap">
+                    {Number(kw.volume ?? kw.searchVolume ?? 0).toLocaleString()}
+                  </td>
                   <td className="px-5 py-3.5"><DifficultyBar value={kw.difficulty} /></td>
-                  <td className="px-5 py-3.5 text-text-secondary">{kw.currentRank ?? kw.rank ?? '—'}</td>
-                  <td className="px-5 py-3.5"><RankChange change={kw.change} /></td>
-                  <td className="px-5 py-3.5"><OpportunityBadge score={kw.opportunityScore ?? kw.opportunity} /></td>
+                  <td className="px-5 py-3.5 text-text-secondary">{kw.currentRank ?? '—'}</td>
+                  <td className="px-5 py-3.5"><RankChange change={kw.change ?? 0} /></td>
+                  <td className="px-5 py-3.5"><OpportunityBadge score={kw.opportunityScore} /></td>
+                  {/* Delete button — group-hover reveal */}
+                  <td className="px-3 py-3.5 w-10">
+                    <div className="relative w-6 h-6">
+                      <button
+                        onClick={() => setConfirmDeleteKw(kw)}
+                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-red-500/10 text-text-secondary hover:text-red-400"
+                        title="Delete keyword"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
                ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Add keyword modal */}
+      {showAddModal && (
+        <AddKeywordModal
+          audits={audits}
+          onClose={() => setShowAddModal(false)}
+          onSaved={() => {
+            setShowAddModal(false);
+            queryClient.invalidateQueries({ queryKey: ['seo', 'keywords'] });
+          }}
+        />
+      )}
+
+      {/* Delete confirm dialog */}
+      {confirmDeleteKw && (
+        <ConfirmDialog
+          title="Delete keyword?"
+          message={`Remove "${confirmDeleteKw.keyword}" from tracking? This cannot be undone.`}
+          onConfirm={() => { deleteMutation.mutate(confirmDeleteKw.id); setConfirmDeleteKw(null); }}
+          onCancel={() => setConfirmDeleteKw(null)}
+        />
+      )}
     </div>
   );
 }

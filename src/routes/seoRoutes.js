@@ -22,9 +22,14 @@ router.get('/audits',                          ctrl.getAudits);
 router.delete('/audits',                       ctrl.deleteAllAudits);
 
 // ── Keyword Tracking ───────────────────────────────────────────────────────
-router.get('/keywords',               ctrl.getKeywords);
-router.get('/keywords/opportunities', ctrl.getOpportunities);
-router.post('/keywords/sync',         requireRole('admin', 'manager'), ctrl.syncKeywords);
+// Static paths must come BEFORE /:id to prevent ambiguity
+router.get('/keywords',                        ctrl.getKeywords);
+router.post('/keywords',                       ctrl.createKeyword);
+router.get('/keywords/opportunities',          ctrl.getOpportunities);
+router.post('/keywords/sync',                  requireRole('admin', 'manager'), ctrl.syncKeywords);
+router.post('/keywords/discover-from-audit',   ctrl.discoverFromAudit);
+router.delete('/keywords/:id',                 ctrl.deleteKeyword);
+router.get('/keywords/:id/history',            ctrl.getKeywordHistory);
 
 // ── Competitor Gap ─────────────────────────────────────────────────────────
 router.get('/gaps',   ctrl.getCompetitorGaps);

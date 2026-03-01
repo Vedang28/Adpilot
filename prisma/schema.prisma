@@ -21,6 +21,7 @@ model Team {
   rules        Rule[]
   integrations Integration[]
   keywords     Keyword[]
+  keywordRanks KeywordRank[]
   competitors  Competitor[]
   seoAudits    SeoAudit[]
   notifications Notification[]
@@ -131,10 +132,30 @@ model Keyword {
   previousRank  Int?      @map("previous_rank")
   trackedUrl    String?   @map("tracked_url")
   lastCheckedAt DateTime? @map("last_checked_at")
+  source        String    @default("manual")       // "manual" | "audit" | "ai"
+  createdBy     String?   @map("created_by")       // userId who added it
+  isActive      Boolean   @default(true) @map("is_active")
   createdAt     DateTime  @default(now()) @map("created_at")
 
-  team Team @relation(fields: [teamId], references: [id])
+  team  Team          @relation(fields: [teamId], references: [id])
+  ranks KeywordRank[]
+  @@index([teamId, isActive])
   @@map("keywords")
+}
+
+model KeywordRank {
+  id         String   @id @default(uuid())
+  keywordId  String   @map("keyword_id")
+  teamId     String   @map("team_id")
+  rank       Int
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  team    Team    @relation(fields: [teamId], references: [id])
+
+  @@index([keywordId, recordedAt])
+  @@index([teamId, recordedAt(sort: Desc)])
+  @@map("keyword_ranks")
 }
 
 model SeoAudit {
