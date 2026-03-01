@@ -1,6 +1,6 @@
 'use strict';
 
-const { respond }      = require('../common/response');
+const { success, created } = require('../common/response');
 const AppError         = require('../common/AppError');
 const MonitoringEngine = require('../services/seo/monitoring/MonitoringEngine');
 const { queues }       = require('../queues');
@@ -14,7 +14,7 @@ async function listMonitors(req, res, next) {
   try {
     const { teamId } = req.user;
     const data = await MonitoringEngine.getMonitorDashboard(teamId);
-    return respond(res, 200, data);
+    return success(res, data);
   } catch (err) {
     next(err);
   }
@@ -35,7 +35,7 @@ async function createMonitor(req, res, next) {
     }
 
     const monitor = await MonitoringEngine.scheduleMonitor(teamId, { url, name, schedule });
-    return respond(res, 201, monitor);
+    return created(res, monitor);
   } catch (err) {
     next(err);
   }
@@ -53,7 +53,7 @@ async function updateMonitor(req, res, next) {
     const { name, schedule } = req.body;
 
     const monitor = await MonitoringEngine.updateMonitor(id, teamId, { name, schedule });
-    return respond(res, 200, monitor);
+    return success(res, monitor);
   } catch (err) {
     next(err);
   }
@@ -85,7 +85,7 @@ async function pauseMonitor(req, res, next) {
     const { id }     = req.params;
 
     const monitor = await MonitoringEngine.pauseMonitor(id, teamId);
-    return respond(res, 200, monitor);
+    return success(res, monitor);
   } catch (err) {
     next(err);
   }
@@ -101,7 +101,7 @@ async function resumeMonitor(req, res, next) {
     const { id }     = req.params;
 
     const monitor = await MonitoringEngine.resumeMonitor(id, teamId);
-    return respond(res, 200, monitor);
+    return success(res, monitor);
   } catch (err) {
     next(err);
   }
@@ -119,7 +119,7 @@ async function getTimeline(req, res, next) {
     const limit      = Math.min(60, parseInt(req.query.limit, 10) || 30);
 
     const data = await MonitoringEngine.getMonitorTimeline(id, teamId, limit);
-    return respond(res, 200, data);
+    return success(res, data);
   } catch (err) {
     next(err);
   }
@@ -146,7 +146,7 @@ async function runNow(req, res, next) {
     );
 
     logger.info('SEO monitor run-now enqueued', { monitorId: id, jobId: job.id });
-    return respond(res, 202, { message: 'Monitor run enqueued', jobId: String(job.id) });
+    return success(res, { message: 'Monitor run enqueued', jobId: String(job.id) }, 202);
   } catch (err) {
     next(err);
   }
