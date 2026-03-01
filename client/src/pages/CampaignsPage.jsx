@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Play, Pause, Trash2, Filter } from 'lucide-react';
+import { Plus, Play, Pause, Trash2, Filter, X, AlertCircle } from 'lucide-react';
 import api from '../lib/api';
 import Badge from '../components/ui/Badge';
 import CreateCampaignModal from '../components/campaigns/CreateCampaignModal';
@@ -17,10 +17,31 @@ function SkeletonRow() {
   );
 }
 
+function ConfirmDialog({ title, message, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-bg-card border border-border rounded-xl shadow-2xl max-w-sm w-full p-6">
+        <h3 className="text-base font-semibold text-text-primary mb-2">{title}</h3>
+        <p className="text-sm text-text-secondary mb-6">{message}</p>
+        <div className="flex justify-end gap-3">
+          <button onClick={onCancel} className="btn-secondary text-sm px-4">Cancel</button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CampaignsPage() {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [filters, setFilters] = useState({ platform: '', status: '' });
+  const [pendingDelete, setPendingDelete] = useState(null); // { id, name }
 
   const { data: campaigns, isLoading } = useQuery({
     queryKey: ['campaigns', filters],
@@ -44,14 +65,8 @@ export default function CampaignsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/campaigns/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns'] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['campaigns'] }); setPendingDelete(null); },
   });
-
-  const handleDelete = (id, name) => {
-    if (window.confirm(`Delete campaign "${name}"? This cannot be undone.`)) {
-      deleteMutation.mutate(id);
-    }
-  };
 
   return (
     <div className="space-y-5">
@@ -155,8 +170,7 @@ export default function CampaignsPage() {
                             </button>
                           )}
                           <button
-                            onClick={() => handleDelete(c.id, c.name)}
-                            disabled={deleteMutation.isPending}
+                            onClick={() => setPendingDelete({ id: c.id, name: c.name })}
                             title="Delete"
                             className="p-1.5 text-text-secondary hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
                           >
@@ -179,6 +193,15 @@ export default function CampaignsPage() {
       </div>
 
       {showModal && <CreateCampaignModal onClose={() => setShowModal(false)} />}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete campaign?"
+          message={`"${pendingDelete.name}" will be permanently deleted. This cannot be undone.`}
+          onConfirm={() => deleteMutation.mutate(pendingDelete.id)}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }

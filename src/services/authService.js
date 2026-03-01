@@ -1,11 +1,14 @@
 'use strict';
 
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const config = require('../config');
+const bcrypt  = require('bcrypt');
+const crypto  = require('crypto');
+const jwt     = require('jsonwebtoken');
+const config  = require('../config');
+const prisma  = require('../config/prisma');
 const userRepo = require('../repositories/userRepository');
 const teamRepo = require('../repositories/teamRepository');
-const { AppError } = require('../middleware/errorHandler');
+const { AppError }    = require('../middleware/errorHandler');
+const emailService    = require('./email/EmailService');
 
 const SALT_ROUNDS = 12;
 
@@ -112,4 +115,53 @@ async function login({ email, password }) {
   };
 }
 
-module.exports = { register, login, generateTokens };
+/**
+ * Generate a password reset token, store it (hashed) on the user,
+ * and email a reset link. Always responds the same way regardless of
+ * whether the email exists, to prevent user enumeration.
+ */
+async function forgotPassword(email) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || !user.isActive) return; // Silent: don't reveal existence
+
+  const rawToken  = crypto.randomBytes(32).toString('hex');
+  const hashed    = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expiry    = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data:  { passwordResetToken: hashed, passwordResetExpiry: expiry },
+  });
+
+  const resetUrl = `${config.frontendUrl}/reset-password?token=${rawToken}`;
+  await emailService.sendPasswordReset({ to: user.email, name: user.name, resetUrl });
+}
+
+/**
+ * Verify the raw token, ensure it hasn't expired, then update the password.
+ */
+async function resetPassword(rawToken, newPassword) {
+  const hashed = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+  const user = await prisma.user.findFirst({
+    where: {
+      passwordResetToken:  hashed,
+      passwordResetExpiry: { gt: new Date() },
+      isActive:            true,
+    },
+  });
+
+  if (!user) throw new AppError('Reset link is invalid or has expired', 400);
+
+  const hashedPwd = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await prisma.user.update({
+    where: { id: user.id },
+    data:  {
+      password:            hashedPwd,
+      passwordResetToken:  null,
+      passwordResetExpiry: null,
+    },
+  });
+}
+
+module.exports = { register, login, generateTokens, forgotPassword, resetPassword };

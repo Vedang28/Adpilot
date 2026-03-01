@@ -17,6 +17,12 @@ const config = {
   database: {
     url: process.env.DATABASE_URL,
   },
+  openaiApiKey: process.env.OPENAI_API_KEY || null,
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY || null,
+    from: process.env.EMAIL_FROM || 'noreply@adpilot.io',
+  },
 };
 
 module.exports = config;

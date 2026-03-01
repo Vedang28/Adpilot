@@ -27,7 +27,8 @@ const analyticsRoutes   = require('./routes/analyticsRoutes');
 const seoRoutes         = require('./routes/seoRoutes');
 const ruleRoutes        = require('./routes/ruleRoutes');
 const integrationRoutes = require('./routes/integrationRoutes');
-const teamRoutes        = require('./routes/teamRoutes');
+const teamRoutes         = require('./routes/teamRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
@@ -247,7 +248,8 @@ app.use('/api/v1/analytics',    analyticsRoutes);
 app.use('/api/v1/seo',          seoRoutes);
 app.use('/api/v1/rules',        ruleRoutes);
 app.use('/api/v1/integrations', integrationRoutes);
-app.use('/api/v1/team',         teamRoutes);
+app.use('/api/v1/team',          teamRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => {

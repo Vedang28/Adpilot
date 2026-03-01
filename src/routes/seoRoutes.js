@@ -35,7 +35,8 @@ router.get('/keywords/:id/history',            ctrl.getKeywordHistory);
 router.get('/gaps',   ctrl.getCompetitorGaps);
 
 // ── Content Briefs ─────────────────────────────────────────────────────────
-router.post('/briefs', heavyLimiter, ctrl.generateBrief);
-router.get('/briefs',               ctrl.getBriefs);
+router.post('/briefs',       heavyLimiter, ctrl.generateBrief);
+router.get('/briefs',                      ctrl.getBriefs);
+router.delete('/briefs/:id',               ctrl.deleteBrief);
 
 module.exports = router;

@@ -489,3 +489,10 @@ exports.getBriefs = async (req, res, next) => {
     return paginated(res, items, total, page, limit);
   } catch (err) { next(err); }
 };
+
+exports.deleteBrief = async (req, res, next) => {
+  try {
+    await contentBriefService.deleteBrief(req.params.id, req.user.teamId);
+    return res.status(204).end();
+  } catch (err) { next(err); }
+};

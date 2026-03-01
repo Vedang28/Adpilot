@@ -5,7 +5,7 @@ import {
   TrendingUp, TrendingDown, Minus, FileText,
   ChevronUp, ChevronDown, ChevronRight, Zap,
   CheckCircle, Clock, Activity, Globe, Link, AlertTriangle,
-  Printer, Trash2,
+  Printer, Trash2, Copy, Tag,
 } from 'lucide-react';
 import api from '../lib/api';
 
@@ -733,7 +733,7 @@ function ExecutiveSummaryPanel({ summary }) {
   );
 }
 
-// ─── Generate Brief Modal (unchanged) ─────────────────────────────────────────
+// ─── Generate Brief Modal ──────────────────────────────────────────────────────
 function GenerateBriefModal({ onClose }) {
   const queryClient = useQueryClient();
   const [targetKeyword, setTargetKeyword] = useState('');
@@ -756,41 +756,246 @@ function GenerateBriefModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={!mutation.isPending ? onClose : undefined} />
       <div className="relative w-full max-w-md bg-bg-card border border-border rounded-2xl shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-base font-semibold text-text-primary">Generate Content Brief</h2>
+          {!mutation.isPending && (
+            <button onClick={onClose} className="text-text-secondary hover:text-text-primary transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        {mutation.isPending ? (
+          <div className="px-6 py-10 flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-accent-purple/10 flex items-center justify-center">
+              <Zap className="w-6 h-6 text-accent-purple animate-pulse" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-text-primary">AI is writing your brief…</p>
+              <p className="text-xs text-text-secondary mt-1">Analysing "{targetKeyword}" — this may take a few seconds</p>
+            </div>
+            <div className="w-full space-y-2 mt-2">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="skeleton h-3 rounded-full" style={{ width: `${85 - i * 10}%` }} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+            {errMsg && (
+              <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg px-3 py-2 text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{errMsg}</span>
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1.5">Target Keyword</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="e.g. best running shoes 2025"
+                value={targetKeyword}
+                onChange={(e) => setTargetKeyword(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-1">
+              <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+              <button type="submit" className="btn-primary">Generate Brief</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Brief Detail Modal ────────────────────────────────────────────────────────
+const INTENT_COLORS = {
+  informational: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  commercial:    'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  transactional: 'bg-green-500/10 text-green-400 border-green-500/20',
+  navigational:  'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+};
+
+function BriefDetailModal({ brief, onClose, onDelete }) {
+  const [expandedSections, setExpandedSections] = useState({});
+  const [copied, setCopied] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const toggleSection = (idx) =>
+    setExpandedSections((s) => ({ ...s, [idx]: !s[idx] }));
+
+  const copyBrief = () => {
+    const lines = [
+      `# ${brief.title}`,
+      ``,
+      `**Target Keyword:** ${brief.targetKeyword}`,
+      brief.metaDescription ? `**Meta Description:** ${brief.metaDescription}` : null,
+      brief.targetWordCount  ? `**Target Word Count:** ${brief.targetWordCount}` : null,
+      brief.searchIntent     ? `**Search Intent:** ${brief.searchIntent}` : null,
+      ``,
+      `## Outline`,
+      ...(brief.outline || []).flatMap((s, i) => [
+        `### ${i + 1}. ${s.heading}`,
+        ...(s.subpoints || []).map((p) => `- ${p}`),
+        ``,
+      ]),
+      brief.competitorAngle ? [`## Competitor Angle`, brief.competitorAngle, ``] : null,
+      brief.callToAction    ? [`## Call to Action`, brief.callToAction] : null,
+    ].flat().filter(Boolean).join('\n');
+
+    navigator.clipboard.writeText(lines).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const intentClass = INTENT_COLORS[brief.searchIntent] || INTENT_COLORS.informational;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl bg-bg-card border border-border rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-accent-purple/10 flex items-center justify-center">
+              <FileText className="w-4 h-4 text-accent-purple" />
+            </div>
+            <span className="text-sm font-semibold text-text-primary">Content Brief</span>
+          </div>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-          {errMsg && (
-            <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg px-3 py-2 text-sm">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{errMsg}</span>
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+
+          {/* Title */}
+          <div>
+            <h2 className="text-lg font-bold text-text-primary leading-snug">{brief.title}</h2>
+            {brief.metaDescription && (
+              <p className="mt-1.5 text-sm text-text-secondary italic">{brief.metaDescription}</p>
+            )}
+          </div>
+
+          {/* Chips */}
+          <div className="flex flex-wrap gap-2">
+            {brief.searchIntent && (
+              <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border ${intentClass}`}>
+                <Tag className="w-3 h-3" />
+                {brief.searchIntent}
+              </span>
+            )}
+            {brief.targetWordCount && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border bg-accent-blue/10 text-accent-blue border-accent-blue/20">
+                ~{brief.targetWordCount.toLocaleString()} words
+              </span>
+            )}
+            {brief.outline?.length > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border bg-border/50 text-text-secondary border-border">
+                {brief.outline.length} sections
+              </span>
+            )}
+          </div>
+
+          {/* Outline accordion */}
+          {brief.outline?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Outline</p>
+              <div className="space-y-1.5">
+                {brief.outline.map((section, idx) => (
+                  <div key={idx} className="border border-border rounded-lg overflow-hidden">
+                    <button
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-white/3 transition-colors"
+                      onClick={() => toggleSection(idx)}
+                    >
+                      <span className="text-sm font-medium text-text-primary">{section.heading}</span>
+                      {expandedSections[idx]
+                        ? <ChevronUp className="w-4 h-4 text-text-secondary shrink-0" />
+                        : <ChevronDown className="w-4 h-4 text-text-secondary shrink-0" />}
+                    </button>
+                    {expandedSections[idx] && section.subpoints?.length > 0 && (
+                      <ul className="px-4 pb-3 space-y-1">
+                        {section.subpoints.map((pt, pi) => (
+                          <li key={pi} className="flex items-start gap-2 text-xs text-text-secondary">
+                            <span className="mt-1.5 w-1 h-1 rounded-full bg-accent-blue shrink-0" />
+                            {pt}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-          <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1.5">Target Keyword</label>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="e.g. best running shoes 2025"
-              value={targetKeyword}
-              onChange={(e) => setTargetKeyword(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-          <div className="flex justify-end gap-3 pt-1">
-            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? 'Generating…' : 'Generate Brief'}
-            </button>
-          </div>
-        </form>
+
+          {/* Related keywords */}
+          {brief.relatedKeywords?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Related Keywords</p>
+              <div className="flex flex-wrap gap-1.5">
+                {brief.relatedKeywords.map((kw) => (
+                  <button
+                    key={kw}
+                    onClick={() => navigator.clipboard.writeText(kw)}
+                    title="Click to copy"
+                    className="text-xs px-2.5 py-1 rounded-full border border-border bg-bg-primary hover:border-accent-blue/40 hover:text-accent-blue text-text-secondary transition-colors"
+                  >
+                    {kw}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Competitor angle */}
+          {brief.competitorAngle && (
+            <div>
+              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Competitor Angle</p>
+              <p className="text-sm text-text-secondary bg-bg-primary border border-border rounded-lg px-4 py-3">{brief.competitorAngle}</p>
+            </div>
+          )}
+
+          {/* CTA */}
+          {brief.callToAction && (
+            <div>
+              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Call to Action</p>
+              <p className="text-sm text-text-secondary bg-bg-primary border border-border rounded-lg px-4 py-3">{brief.callToAction}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer actions */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />Delete Brief
+          </button>
+          <button onClick={copyBrief} className="btn-secondary flex items-center gap-1.5 text-xs">
+            {copied ? <CheckCircle className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? 'Copied!' : 'Copy Brief'}
+          </button>
+        </div>
       </div>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete brief?"
+          message={`This will permanently delete the brief for "${brief.targetKeyword}".`}
+          onConfirm={onDelete}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1388,14 +1593,35 @@ function GapsTab() {
   );
 }
 
-// ─── Content Briefs (unchanged) ───────────────────────────────────────────────
+// ─── Content Briefs ────────────────────────────────────────────────────────────
+const INTENT_CHIP = {
+  informational: 'bg-blue-500/10 text-blue-400',
+  commercial:    'bg-purple-500/10 text-purple-400',
+  transactional: 'bg-green-500/10 text-green-400',
+  navigational:  'bg-yellow-500/10 text-yellow-400',
+};
+
 function ContentBriefs() {
-  const [showModal, setShowModal] = useState(false);
+  const queryClient = useQueryClient();
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [selectedBrief, setSelectedBrief]   = useState(null);
+  const [pendingDelete, setPendingDelete]    = useState(null);
 
   const { data: briefs, isLoading, error } = useQuery({
     queryKey: ['seo', 'briefs'],
     queryFn:  () => api.get('/seo/briefs').then((r) => r.data.data),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/seo/briefs/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seo', 'briefs'] });
+      setPendingDelete(null);
+      if (selectedBrief?.id === pendingDelete) setSelectedBrief(null);
+    },
+  });
+
+  const handleDeleteConfirm = () => deleteMutation.mutate(pendingDelete);
 
   return (
     <div className="space-y-4">
@@ -1404,15 +1630,19 @@ function ContentBriefs() {
           <h2 className="text-base font-semibold text-text-primary">Content Briefs</h2>
           <p className="text-xs text-text-secondary mt-0.5">AI-generated content strategy documents</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
+        <button onClick={() => setShowGenerate(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />Generate Brief
         </button>
       </div>
 
       {isLoading ? (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">{[...Array(3)].map((_, i) => <div key={i} className="skeleton h-28 rounded-xl" />)}</div>
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-32 rounded-xl" />)}
+        </div>
       ) : error ? (
-        <div className="card text-center text-red-400 text-sm py-8"><AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-60" />Failed to load briefs.</div>
+        <div className="card text-center text-red-400 text-sm py-8">
+          <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-60" />Failed to load briefs.
+        </div>
       ) : !briefs?.length ? (
         <div className="card text-center text-text-secondary text-sm py-10">
           <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -1421,26 +1651,69 @@ function ContentBriefs() {
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {briefs.map((brief) => (
-            <div key={brief.id} className="card hover:border-accent-blue/40 transition-colors cursor-pointer">
-              <div className="flex items-start justify-between gap-2">
-                <div className="w-8 h-8 rounded-lg bg-accent-purple/10 flex items-center justify-center shrink-0">
-                  <FileText className="w-4 h-4 text-accent-purple" />
+          {briefs.map((brief) => {
+            const intentChip = INTENT_CHIP[brief.searchIntent];
+            const sectionCount = brief.outline?.length ?? 0;
+            return (
+              <div
+                key={brief.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedBrief(brief)}
+                onKeyDown={(e) => e.key === 'Enter' && setSelectedBrief(brief)}
+                className="card group hover:border-accent-blue/40 transition-colors cursor-pointer relative"
+              >
+                {/* Trash icon — top-right, reveal on hover */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setPendingDelete(brief.id); }}
+                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/10 text-text-secondary hover:text-red-400"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+
+                <div className="flex items-start gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-accent-purple/10 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-accent-purple" />
+                  </div>
+                  {intentChip && (
+                    <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${intentChip}`}>
+                      {brief.searchIntent}
+                    </span>
+                  )}
                 </div>
-                <PriorityBadge priority={brief.priority || 'medium'} />
+
+                <h3 className="mt-3 text-sm font-semibold text-text-primary leading-snug line-clamp-2">
+                  {brief.targetKeyword || brief.title}
+                </h3>
+
+                <div className="mt-2 flex items-center gap-3 text-xs text-text-secondary">
+                  {sectionCount > 0 && <span>{sectionCount} sections</span>}
+                  <span>{new Date(brief.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                </div>
               </div>
-              <h3 className="mt-3 text-sm font-semibold text-text-primary leading-snug line-clamp-2">
-                {brief.targetKeyword || brief.title}
-              </h3>
-              <p className="mt-1 text-xs text-text-secondary">
-                {new Date(brief.createdAt || brief.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {showModal && <GenerateBriefModal onClose={() => setShowModal(false)} />}
+      {showGenerate && <GenerateBriefModal onClose={() => setShowGenerate(false)} />}
+
+      {selectedBrief && (
+        <BriefDetailModal
+          brief={selectedBrief}
+          onClose={() => setSelectedBrief(null)}
+          onDelete={() => { setPendingDelete(selectedBrief.id); setSelectedBrief(null); }}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete brief?"
+          message="This will permanently delete this content brief."
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }

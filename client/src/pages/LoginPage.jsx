@@ -60,9 +60,20 @@ export default function LoginPage() {
   // ── REGISTER MUTATION ──
   const registerMutation = useMutation({
     mutationFn: (data) => api.post('/auth/register', data),
-    onSuccess: () => {
-      showMessage('Account created! Signing you in...', 'success');
-      setTimeout(() => switchTab('login'), 1500);
+    onSuccess: (res) => {
+      const data = res.data?.data ?? res.data;
+      if (data?.accessToken) {
+        setAuth({
+          user:         data.user,
+          team:         data.team,
+          accessToken:  data.accessToken,
+          refreshToken: data.refreshToken,
+        });
+        navigate('/dashboard');
+      } else {
+        showMessage('Account created! Signing you in...', 'success');
+        setTimeout(() => switchTab('login'), 1500);
+      }
     },
     onError: (err) => {
       const msg = err?.response?.data?.error?.message || 'Registration failed. Please try again.';
@@ -85,10 +96,23 @@ export default function LoginPage() {
     });
   };
 
+  const forgotMutation = useMutation({
+    mutationFn: (email) => api.post('/auth/forgot-password', { email }),
+    onSuccess: () => {
+      showMessage('If that email exists, a reset link has been sent. Check your inbox.', 'success');
+      setTimeout(() => setShowForgot(false), 4000);
+    },
+    onError: () => {
+      // Still show success to prevent enumeration
+      showMessage('If that email exists, a reset link has been sent. Check your inbox.', 'success');
+      setTimeout(() => setShowForgot(false), 4000);
+    },
+  });
+
   const handleForgot = (e) => {
     e.preventDefault();
-    showMessage('If that email exists, a reset link has been sent. Check your inbox.', 'success');
-    setTimeout(() => setShowForgot(false), 3000);
+    if (!forgotEmail.trim()) return;
+    forgotMutation.mutate(forgotEmail.trim());
   };
 
   const checkPwd = (val) => {
@@ -489,12 +513,12 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <button type="submit" className="btn-submit">
+                  <button type="submit" className="btn-submit" disabled={forgotMutation.isPending}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                       <polyline points="22,6 12,13 2,6"/>
                     </svg>
-                    Send Reset Link
+                    {forgotMutation.isPending ? 'Sending…' : 'Send Reset Link'}
                   </button>
 
                   <button type="button" className="back-link" onClick={() => { setShowForgot(false); setFormMsg(null); }}>

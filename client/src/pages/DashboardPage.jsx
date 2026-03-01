@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Zap, DollarSign, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Zap, DollarSign, TrendingUp, Plus } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import StatCard from '../components/ui/StatCard';
 import Badge from '../components/ui/Badge';
@@ -36,6 +37,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { data: overview, isLoading: loadingOverview } = useQuery({
     queryKey: ['analytics', 'overview'],
     queryFn: () => api.get('/analytics/overview').then((r) => r.data.data),
@@ -168,7 +170,15 @@ export default function DashboardPage() {
               </tbody>
             </table>
             {(!recentCampaigns || recentCampaigns.length === 0) && (
-              <p className="text-center text-text-secondary py-8 text-sm">No campaigns yet.</p>
+              <div className="text-center py-10">
+                <p className="text-text-secondary text-sm mb-3">No campaigns yet.</p>
+                <button
+                  onClick={() => navigate('/campaigns')}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-accent-blue/10 text-accent-blue border border-accent-blue/20 hover:bg-accent-blue/20 text-sm font-medium transition-colors"
+                >
+                  <Plus className="w-4 h-4" />Create your first campaign
+                </button>
+              </div>
             )}
           </div>
         )}

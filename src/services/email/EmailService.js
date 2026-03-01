@@ -53,6 +53,15 @@ class EmailService {
     return this._send({ to: user.email, subject, html });
   }
 
+  /**
+   * Send a password reset email.
+   */
+  async sendPasswordReset({ to, name, resetUrl }) {
+    const subject = 'Reset your AdPilot password';
+    const html    = buildPasswordResetHtml({ name, resetUrl });
+    return this._send({ to, subject, html });
+  }
+
   async _send({ to, subject, html }) {
     if (!this._resend) {
       logger.info('EmailService DRY-RUN', { to, subject });
@@ -156,6 +165,42 @@ function buildAlertHtml({ name, message, type }) {
         <tr>
           <td style="padding:16px 40px;border-top:1px solid #2a2d3a;text-align:center;">
             <p style="color:#475569;font-size:12px;margin:0;">© ${new Date().getFullYear()} AdPilot</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+function buildPasswordResetHtml({ name, resetUrl }) {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><title>Reset your password</title></head>
+<body style="margin:0;padding:0;background:#0f1117;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f1117;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#1a1d27;border:1px solid #2a2d3a;border-radius:16px;overflow:hidden;">
+        <tr>
+          <td style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);padding:32px 40px;text-align:center;">
+            <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">⚡ AdPilot</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px;">
+            <h1 style="color:#f1f5f9;font-size:22px;font-weight:700;margin:0 0 12px;">Reset your password</h1>
+            <p style="color:#94a3b8;font-size:15px;line-height:1.6;margin:0 0 24px;">Hi ${name}, we received a request to reset your AdPilot password. Click the button below to set a new one.</p>
+            <a href="${resetUrl}"
+               style="display:block;text-align:center;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;margin-bottom:24px;">
+              Reset Password →
+            </a>
+            <p style="color:#475569;font-size:13px;line-height:1.5;margin:0;">This link expires in <strong>1 hour</strong>. If you didn't request a password reset, you can safely ignore this email.</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 40px;border-top:1px solid #2a2d3a;text-align:center;">
+            <p style="color:#475569;font-size:12px;margin:0;">© ${new Date().getFullYear()} AdPilot. All rights reserved.</p>
           </td>
         </tr>
       </table>

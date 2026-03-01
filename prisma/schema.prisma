@@ -33,15 +33,17 @@ model Team {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  teamId    String   @map("team_id")
-  email     String   @unique
-  name      String
-  password  String
-  role      String   @default("admin")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                  String    @id @default(uuid())
+  teamId              String    @map("team_id")
+  email               String    @unique
+  name                String
+  password            String
+  role                String    @default("admin")
+  isActive            Boolean   @default(true) @map("is_active")
+  passwordResetToken  String?   @map("password_reset_token")
+  passwordResetExpiry DateTime? @map("password_reset_expiry")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
   team          Team           @relation(fields: [teamId], references: [id])
   notifications Notification[]
