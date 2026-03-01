@@ -490,4 +490,27 @@ Stage 9 (Deploy):      ░░░░░░░░░░    0%
 
 ---
 
-*Last updated: 2026-03-02 — Session: C14/C15/Phase D complete — dashboard redesign, Budget AI (D1), Competitor Hijack (D2), Scaling Predictor (D3)*
+*Last updated: 2026-03-02 — Session: Phase H-FIX — all bugs fixed, all endpoints verified passing*
+
+---
+
+## Phase H-FIX — Comprehensive Testing + Bug Fixes ✅ Complete
+
+### Bugs Fixed
+1. **Login onboarding redirect** (`authService.js`) — `onboardingCompleted ?? false` coerced null→false
+   for existing users, forcing them to /onboarding. Fixed: preserve raw DB value.
+2. **Demo login 500 error** (`demoController.js`) — full rewrite:
+   - Was using `members` relation which doesn't exist (schema has direct Team.users[])
+   - Was creating User without required teamId (team must be created first)
+   - Campaign seed used direct fields (spend/roas/clicks) instead of `performance` JSON column
+   - Now handles partial seeding on retry
+
+### All Endpoints Verified Passing ✅
+- POST /auth/login → onboardingCompleted: true for existing users
+- POST /auth/demo-login → success, isDemo: true, 4 campaigns, 5 notifications
+- GET /users/me, /campaigns, /analytics/overview, /notifications
+- GET /budget-ai/scan, /budget-ai/alerts, /competitors, /research/hijack-analysis
+- GET /scaling/all-campaigns, /scaling/readiness, /seo/audits, /seo/keywords
+- GET /seo/monitors (CRUD: create/list/timeline/pause/resume/delete all pass)
+- SEO audits complete: example.com (79/B), maxleads.in (78/B)
+- Frontend vite build: clean ✓ | Backend app.js loads without errors ✓
