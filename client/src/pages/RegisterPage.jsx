@@ -13,7 +13,7 @@ export default function RegisterPage() {
     mutationFn: (data) => api.post('/auth/register', data),
     onSuccess: () => {
       setSuccess(true);
-      setTimeout(() => navigate('/login'), 2000);
+      setTimeout(() => navigate('/login?from=register'), 2000);
     },
   });
 

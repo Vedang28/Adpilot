@@ -110,6 +110,7 @@ async function login({ email, password }) {
       email: user.email,
       role: user.role,
       teamId: user.teamId,
+      onboardingCompleted: user.onboardingCompleted,
     },
     ...tokens,
   };

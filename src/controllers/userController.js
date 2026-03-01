@@ -11,7 +11,7 @@ exports.getMe = async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
       where:  { id: req.user.userId },
-      select: { id: true, name: true, email: true, role: true, teamId: true, createdAt: true },
+      select: { id: true, name: true, email: true, role: true, teamId: true, onboardingCompleted: true, createdAt: true },
     });
     if (!user) throw AppError.notFound('User');
     return success(res, { user });
@@ -45,5 +45,21 @@ exports.changePassword = async (req, res, next) => {
     await prisma.user.update({ where: { id: req.user.userId }, data: { password: hashed } });
 
     return success(res, { message: 'Password updated successfully' });
+  } catch (err) { next(err); }
+};
+
+exports.completeOnboarding = async (req, res, next) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.user.userId },
+      data:  { onboardingCompleted: true },
+    });
+    if (req.body.companyName?.trim()) {
+      await prisma.team.update({
+        where: { id: req.user.teamId },
+        data:  { name: req.body.companyName.trim() },
+      });
+    }
+    return success(res, { message: 'Onboarding complete' });
   } catch (err) { next(err); }
 };

@@ -7,8 +7,9 @@ const ctrl             = require('../controllers/userController');
 const router = express.Router();
 router.use(authenticate);
 
-router.get('/',               ctrl.getMe);
-router.patch('/',             ctrl.updateMe);
-router.post('/change-password', ctrl.changePassword);
+router.get('/',                    ctrl.getMe);
+router.patch('/',                  ctrl.updateMe);
+router.post('/change-password',    ctrl.changePassword);
+router.post('/onboarding-complete', ctrl.completeOnboarding);
 
 module.exports = router;

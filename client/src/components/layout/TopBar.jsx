@@ -34,7 +34,7 @@ const TYPE_COLORS = {
 
 export default function TopBar({ onMenuClick }) {
   const location = useLocation();
-  const { user } = useAuthStore();
+  const { user, isDemo } = useAuthStore();
   const title = routeTitles[location.pathname] || 'AdPilot';
   const queryClient = useQueryClient();
 
@@ -66,6 +66,19 @@ export default function TopBar({ onMenuClick }) {
   });
 
   return (
+    <>
+    {isDemo && (
+      <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2
+                      flex items-center justify-between text-xs">
+        <span className="text-amber-400 font-medium">
+          You&apos;re exploring a live demo. Data is simulated.
+        </span>
+        <Link to="/register"
+              className="text-amber-400 underline hover:text-amber-300 font-semibold">
+          Create free account →
+        </Link>
+      </div>
+    )}
     <header className="h-16 border-b border-border bg-bg-secondary flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center gap-4">
         <button
@@ -163,5 +176,6 @@ export default function TopBar({ onMenuClick }) {
         )}
       </div>
     </header>
+    </>
   );
 }

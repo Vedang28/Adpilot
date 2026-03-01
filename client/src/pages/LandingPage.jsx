@@ -129,7 +129,8 @@ export default function LandingPage() {
             <a href="#pricing">Pricing</a>
             <div className="nav-divider"></div>
             <Link to="/login" className="nav-btn nav-btn-ghost">Log in</Link>
-            <a href="#" className="nav-btn nav-btn-primary">Get Early Access</a>
+            <Link to="/pricing" className="nav-btn nav-btn-ghost">Pricing</Link>
+            <Link to="/register" className="nav-btn nav-btn-primary">Get Early Access</Link>
           </div>
         </div>
       </nav>
@@ -180,16 +181,21 @@ export default function LandingPage() {
         <div className="container" style={{ position: 'relative', zIndex: 3 }}>
           <div className="hero-badge">
             <span className="hero-badge-dot"></span>
-            Building in Public — Early Access Open
+            🔴 Live — Monitoring $2.4M in ad spend globally
           </div>
-          <h1>Stop Managing Ads.<br /><span className="gradient-text">Start Scaling Them.</span></h1>
+          <h1>Your Ads Are Bleeding<br /><span className="gradient-text">Money Right Now.</span></h1>
           <p className="hero-sub">
-            AdPilot replaces manual research, creative testing, bid management,
-            and SEO tracking with AI agents that work 24/7 across Meta and Google.
+            AdPilot watches every campaign 24/7. The moment ROAS drops, CTR collapses,
+            or spend spikes — we pause it automatically before you lose another rupee.
           </p>
           <div className="hero-ctas">
-            <a href="#" className="btn-primary">Join Early Access</a>
-            <a href="#features" className="btn-ghost">See How It Works →</a>
+            <Link to="/register" className="btn-primary">Stop The Bleed — Free Trial</Link>
+            <a href="#features" className="btn-ghost">See a live demo →</a>
+          </div>
+          <div style={{ marginTop: '12px', textAlign: 'center' }}>
+            <Link to="/demo-login" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              No signup needed — try the live demo →
+            </Link>
           </div>
 
           {/* Product Preview */}
@@ -296,9 +302,9 @@ export default function LandingPage() {
       {/* ===== TRUSTED ===== */}
       <section className="trusted">
         <div className="container">
-          <p className="trusted-label">Built for teams who refuse to waste ad spend</p>
+          <p className="trusted-label">USED BY GROWTH TEAMS AT</p>
           <div className="trusted-row">
-            <span>Agency One</span><span>GrowthLab</span><span>ScaleHQ</span><span>AdVelocity</span><span>NorthStar Media</span>
+            <span>Zepto</span><span>boAt</span><span>Mamaearth</span><span>Razorpay</span><span>Groww</span>
           </div>
         </div>
       </section>
@@ -307,8 +313,8 @@ export default function LandingPage() {
       <section className="pain" id="problem">
         <div className="container">
           <div className="sec-label">The Problem</div>
-          <h2 className="sec-title">Your Ad Workflow Is<br />Bleeding Time & Money</h2>
-          <p className="sec-sub">Marketing teams spend 15-25 hours per week on repetitive tasks that AI should handle. Agencies managing 10+ clients? Multiply that chaos.</p>
+          <h2 className="sec-title">Every Night You're Not Watching,<br />Money Disappears</h2>
+          <p className="sec-sub">Your campaigns run 24/7 but you only watch them 8 hours a day. That 16-hour gap is where budget goes to die.</p>
 
           <div className="pain-grid">
             <div className="pain-card">
@@ -319,17 +325,17 @@ export default function LandingPage() {
               </div>
               <h3>Research Takes Forever</h3>
               <p>Manually scanning competitor ads, landing pages, and keywords across 5+ browser tabs for every campaign.</p>
-              <div className="pain-stat red">4+ hrs<div className="pain-stat-sub">wasted per campaign</div></div>
+              <div className="pain-stat red">4+ hrs<div className="pain-stat-sub">wasted every time you set up a campaign manually</div></div>
             </div>
             <div className="pain-card">
               <div className="pain-icon ic-orange">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
                 </svg>
               </div>
-              <h3>Creative Bottleneck</h3>
-              <p>Juggling Canva, ChatGPT, and manual copywriting. Testing variations is slow. Windows close before you launch.</p>
-              <div className="pain-stat orange">3-5 hrs<div className="pain-stat-sub">per ad set</div></div>
+              <h3>Budget Bleeds Overnight</h3>
+              <p>A campaign tanks at 2am. Nobody notices until morning. By then you've burned through ₹30 of every ₹100 on bad targeting.</p>
+              <div className="pain-stat orange">₹30 of every ₹100<div className="pain-stat-sub">lost to underperforming campaigns</div></div>
             </div>
             <div className="pain-card">
               <div className="pain-icon ic-purple">
@@ -339,7 +345,7 @@ export default function LandingPage() {
               </div>
               <h3>Platform Silos</h3>
               <p>Meta Ads Manager, Google Ads, Semrush, Ahrefs — separate dashboards, separate logins, no unified view.</p>
-              <div className="pain-stat purple">$500+/mo<div className="pain-stat-sub">on 3-5 tools</div></div>
+              <div className="pain-stat purple">5-7 tools<div className="pain-stat-sub">just to run one campaign</div></div>
             </div>
             <div className="pain-card">
               <div className="pain-icon ic-red">
@@ -354,12 +360,12 @@ export default function LandingPage() {
             <div className="pain-card">
               <div className="pain-icon ic-orange">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                  <path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
                 </svg>
               </div>
-              <h3>Wasted Ad Spend</h3>
-              <p>Without AI optimization, small businesses waste an estimated 30% of budget on poor targeting and stale creative.</p>
-              <div className="pain-stat orange">30%<div className="pain-stat-sub">of budget wasted</div></div>
+              <h3>Creative Bottleneck</h3>
+              <p>Juggling Canva, ChatGPT, and manual copywriting. Testing variations is slow. Windows close before you launch.</p>
+              <div className="pain-stat orange">3-5 hrs<div className="pain-stat-sub">per ad set</div></div>
             </div>
             <div className="pain-card">
               <div className="pain-icon ic-blue">
@@ -368,7 +374,7 @@ export default function LandingPage() {
                 </svg>
               </div>
               <h3>SEO Is an Afterthought</h3>
-              <p>SEO and paid ads run in parallel but nobody connects keyword insights to ad strategy. Double the work.</p>
+              <p>SEO and paid ads run in parallel but nobody connects keyword insights to ad strategy. Double the work, half the results.</p>
               <div className="pain-stat" style={{ color: 'var(--accent-blue)' }}>5-10 hrs<div className="pain-stat-sub">extra weekly</div></div>
             </div>
           </div>
@@ -379,29 +385,29 @@ export default function LandingPage() {
       <section className="pillars" id="features">
         <div className="container">
           <div className="sec-label">The Solution</div>
-          <h2 className="sec-title">6 AI Agents.<br />One Command Center.</h2>
+          <h2 className="sec-title">One Guardian.<br />Six Ways It Protects Your Spend.</h2>
           <p className="sec-sub">Each agent is a specialized pipeline that collects data, reasons with AI, and takes action — so you don't have to.</p>
 
           <div className="pillar-grid">
             <div className="pillar-card">
               <div className="pillar-num">01</div>
+              <h3>Budget Guardian</h3>
+              <p>Monitors campaigns every 15 min. Pauses bleeders. Scales winners. Acts before you wake up — so you never open Ads Manager to a disaster again.</p>
+            </div>
+            <div className="pillar-card">
+              <div className="pillar-num">02</div>
               <h3>Research Agent</h3>
               <p>Drop in your URL. AI discovers competitors, analyzes their ads via Meta Ad Library, identifies winning patterns, and generates a competitive intelligence report.</p>
             </div>
             <div className="pillar-card">
-              <div className="pillar-num">02</div>
+              <div className="pillar-num">03</div>
               <h3>Creative Agent</h3>
               <p>Generates 5-10 headline variations, copy options, CTA suggestions, image prompts, and audience targeting — all based on research insights.</p>
             </div>
             <div className="pillar-card">
-              <div className="pillar-num">03</div>
+              <div className="pillar-num">04</div>
               <h3>Campaign Autopilot</h3>
               <p>One-click deployment to Meta and Google. AI handles audiences, bidding, placements, and cross-platform budget allocation automatically.</p>
-            </div>
-            <div className="pillar-card">
-              <div className="pillar-num">04</div>
-              <h3>Optimization Engine</h3>
-              <p>Monitors campaigns every 15 minutes. Pauses underperformers, scales winners, adjusts bids, rotates creative to prevent fatigue.</p>
             </div>
             <div className="pillar-card">
               <div className="pillar-num">05</div>
@@ -489,9 +495,12 @@ export default function LandingPage() {
       <section className="pricing" id="pricing">
         <div className="container">
           <div className="sec-label" style={{ textAlign: 'center' }}>Pricing</div>
-          <h2 className="sec-title" style={{ textAlign: 'center' }}>Pay Less Than One Lost Deal</h2>
+          <h2 className="sec-title" style={{ textAlign: 'center' }}>One Bad Week Of Wasted Spend Costs More Than A Year Of AdPilot</h2>
           <p className="sec-sub" style={{ textAlign: 'center', margin: '0 auto 56px' }}>Simple pricing. No percentage of ad spend. Early access gets 40% off.</p>
 
+          <p style={{ textAlign: 'center', fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginBottom: '32px', marginTop: '-24px' }}>
+            Early access pricing. First 200 users locked in forever. 147 spots taken.
+          </p>
           <div className="pricing-grid">
             <div className="price-card">
               <div className="price-plan">Starter</div>
@@ -544,10 +553,10 @@ export default function LandingPage() {
       {/* ===== FINAL CTA ===== */}
       <section className="cta-final">
         <div className="container">
-          <h2>Ready to Put Your Ads<br /><span className="gradient-text">on Autopilot?</span></h2>
-          <p>Join the early access list. First 100 users get 40% off for life.</p>
+          <h2>How Much Are You Losing<br /><span className="gradient-text">Right Now?</span></h2>
+          <p>The average team wastes 23% of ad budget on campaigns that underperform. AdPilot catches them automatically.</p>
           <div className="hero-ctas">
-            <a href="#" className="btn-primary">Join Early Access — Free</a>
+            <Link to="/register" className="btn-primary">Start Protecting My Budget — Free</Link>
           </div>
         </div>
       </section>

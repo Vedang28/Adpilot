@@ -1,44 +1,58 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Zap,
-  Wand2,
-  Search,
-  Shield,
-  Bot,
-  Plug,
-  BarChart3,
-  Users,
-  Settings,
-  LogOut,
-  X,
-  ShieldAlert,
-  Crosshair,
-  TrendingUp,
+  LayoutDashboard, Megaphone, BarChart2,
+  Sparkles, ShieldAlert, TrendingUp,
+  Shield, Search, Crosshair,
+  Sliders, Plug, Users, Settings,
+  LogOut, X, Zap,
 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 
-const navItems = [
-  { label: 'Dashboard',       icon: LayoutDashboard, to: '/dashboard' },
-  { label: 'Campaigns',       icon: Zap,             to: '/campaigns' },
-  { label: 'Ad Studio',       icon: Wand2,           to: '/ads' },
-  { label: 'Research Hub',    icon: Search,          to: '/research' },
-  { label: 'SEO Intelligence',icon: Shield,          to: '/seo' },
-  { label: 'Rules',           icon: Bot,             to: '/rules' },
-  { label: 'Integrations',    icon: Plug,            to: '/integrations' },
-  { label: 'Analytics',       icon: BarChart3,       to: '/analytics' },
-  { label: 'Team',            icon: Users,           to: '/team' },
-  { label: 'Settings',        icon: Settings,        to: '/settings' },
+const NAV_GROUPS = [
+  {
+    label: null,
+    items: [
+      { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { path: '/campaigns', icon: Megaphone,       label: 'Campaigns' },
+      { path: '/analytics', icon: BarChart2,       label: 'Analytics' },
+    ],
+  },
+  {
+    label: 'AI TOOLS',
+    items: [
+      { path: '/ads',       icon: Sparkles,   label: 'Ad Studio' },
+      { path: '/budget-ai', icon: ShieldAlert, label: 'Budget AI',       badge: 'NEW', badgeColor: 'orange' },
+      { path: '/scaling',   icon: TrendingUp,  label: 'Scale Predictor', badge: 'NEW', badgeColor: 'green' },
+    ],
+  },
+  {
+    label: 'INTELLIGENCE',
+    items: [
+      { path: '/seo',               icon: Shield,   label: 'SEO Intelligence' },
+      { path: '/research',          icon: Search,   label: 'Research Hub' },
+      { path: '/competitor-hijack', icon: Crosshair, label: 'Competitor Intel', badge: 'NEW', badgeColor: 'red' },
+    ],
+  },
+  {
+    label: 'SETTINGS',
+    items: [
+      { path: '/rules',        icon: Sliders,  label: 'Rules' },
+      { path: '/integrations', icon: Plug,     label: 'Integrations' },
+      { path: '/team',         icon: Users,    label: 'Team' },
+      { path: '/settings',     icon: Settings, label: 'Settings' },
+    ],
+  },
 ];
 
-const killerItems = [
-  { label: 'Budget AI',        icon: ShieldAlert,  to: '/budget-ai',         badge: 'BETA', badgeClass: 'bg-orange-500/20 text-orange-400' },
-  { label: 'Competitor Intel', icon: Crosshair,    to: '/competitor-hijack', badge: 'BETA', badgeClass: 'bg-red-500/20 text-red-400' },
-  { label: 'Scale AI',         icon: TrendingUp,   to: '/scaling',           badge: 'BETA', badgeClass: 'bg-green-500/20 text-accent-green' },
-];
+const BADGE_STYLES = {
+  orange: 'bg-orange-500/10 text-orange-400 border border-orange-500/20',
+  green:  'bg-green-500/10  text-green-400  border border-green-500/20',
+  red:    'bg-red-500/10    text-red-400    border border-red-500/20',
+  blue:   'bg-blue-500/10   text-blue-400   border border-blue-500/20',
+};
 
 export default function Sidebar({ open, onClose }) {
-  const { user, team, logout } = useAuthStore();
+  const { user, team, logout, isDemo } = useAuthStore();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -50,99 +64,106 @@ export default function Sidebar({ open, onClose }) {
     ? user.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U';
 
+  const showUpgradeBanner = team?.plan === 'starter' || team?.plan === 'free';
+
   return (
     <>
       {/* Mobile overlay */}
       {open && (
-        <div
-          className="fixed inset-0 bg-black/60 z-20 lg:hidden"
-          onClick={onClose}
-        />
+        <div className="fixed inset-0 bg-black/60 z-20 lg:hidden" onClick={onClose} />
       )}
 
-      <aside
-        className={`
-          fixed top-0 left-0 h-full z-30 flex flex-col
-          w-60 bg-bg-secondary border-r border-border
-          transition-transform duration-300
-          ${open ? 'translate-x-0' : '-translate-x-full'}
-          lg:translate-x-0 lg:static lg:z-auto
-        `}
-      >
+      <aside className={`
+        fixed top-0 left-0 h-full z-30 flex flex-col
+        w-60 bg-bg-secondary border-r border-border
+        transition-transform duration-300
+        ${open ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0 lg:static lg:z-auto
+      `}>
         {/* Logo */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-blue to-accent-purple flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600
+                            flex items-center justify-center">
               <Zap className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-lg text-text-primary tracking-tight">AdPilot</span>
+            <span className="font-bold text-base text-text-primary tracking-tight">AdPilot</span>
           </div>
-          <button
-            onClick={onClose}
-            className="lg:hidden text-text-secondary hover:text-text-primary transition-colors"
-          >
+          <button onClick={onClose} className="lg:hidden text-text-secondary hover:text-text-primary transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Team pill */}
         {team && (
-          <div className="mx-4 mt-4 px-3 py-2 bg-bg-card border border-border rounded-lg">
-            <p className="text-xs text-text-secondary">Team</p>
-            <p className="text-sm font-semibold text-text-primary truncate">{team.name}</p>
+          <div className="mx-3 mt-3 px-3 py-2 bg-bg-card border border-border rounded-xl">
+            <p className="text-[10px] text-text-secondary uppercase tracking-wider font-medium">Workspace</p>
+            <p className="text-sm font-semibold text-text-primary truncate leading-tight mt-0.5">{team.name}</p>
+            {team.plan && (
+              <span className="text-[10px] font-bold text-accent-blue capitalize">{team.plan} plan</span>
+            )}
           </div>
         )}
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ label, icon: Icon, to }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => onClose?.()}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                  isActive
-                    ? 'bg-accent-blue/10 text-accent-blue border border-accent-blue/20'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-card'
-                }`
-              }
-            >
-              <Icon className="shrink-0 w-[18px] h-[18px]" />
-              {label}
-            </NavLink>
-          ))}
-
-          {/* Killer Features */}
-          <div className="pt-3 pb-1">
-            <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-text-secondary/50">AI Features</p>
-          </div>
-          {killerItems.map(({ label, icon: Icon, to, badge, badgeClass }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => onClose?.()}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                  isActive
-                    ? 'bg-accent-blue/10 text-accent-blue border border-accent-blue/20'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-card'
-                }`
-              }
-            >
-              <Icon className="shrink-0 w-[18px] h-[18px]" />
-              <span className="flex-1">{label}</span>
-              {badge && (
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${badgeClass}`}>{badge}</span>
+        {/* Nav groups */}
+        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
+          {NAV_GROUPS.map((group, gi) => (
+            <div key={gi} className={gi > 0 ? 'pt-2' : ''}>
+              {group.label && (
+                <p className="px-3 mb-1 text-[9px] font-bold uppercase tracking-widest text-text-secondary/40">
+                  {group.label}
+                </p>
               )}
-            </NavLink>
+              {group.items.map(({ path, icon: Icon, label, badge, badgeColor }) => (
+                <NavLink
+                  key={path}
+                  to={path}
+                  onClick={() => onClose?.()}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                     transition-all duration-150 group ${
+                      isActive
+                        ? 'bg-accent-blue/10 text-accent-blue border border-accent-blue/20'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-card'
+                    }`
+                  }
+                >
+                  <Icon className="shrink-0 w-[17px] h-[17px]" />
+                  <span className="flex-1 truncate">{label}</span>
+                  {badge && (
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${BADGE_STYLES[badgeColor]}`}>
+                      {badge}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
+        {/* Upgrade banner */}
+        {showUpgradeBanner && !isDemo && (
+          <div className="mx-3 mb-3 p-3 rounded-xl border border-purple-500/20
+                          bg-gradient-to-br from-purple-600/20 via-purple-600/10 to-blue-600/20">
+            <p className="text-xs font-semibold text-white/80">Upgrade to Growth</p>
+            <p className="text-[11px] text-white/40 mt-0.5 mb-2.5 leading-snug">
+              Unlock Budget AI + unlimited campaigns
+            </p>
+            <button
+              onClick={() => navigate('/pricing')}
+              className="w-full text-xs py-1.5 px-3 rounded-lg bg-purple-600 hover:bg-purple-500
+                         text-white font-semibold transition-colors"
+            >
+              See Plans →
+            </button>
+          </div>
+        )}
+
         {/* User section */}
-        <div className="px-4 py-4 border-t border-border">
+        <div className="px-4 py-3 border-t border-border">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-blue to-accent-purple flex items-center justify-center text-xs font-bold text-white shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600
+                            flex items-center justify-center text-xs font-bold text-white shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">

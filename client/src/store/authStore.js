@@ -4,13 +4,18 @@ import { persist } from 'zustand/middleware';
 const useAuthStore = create(
   persist(
     (set) => ({
-      user: null,
-      token: null,
-      team: null,
+      user:   null,
+      token:  null,
+      team:   null,
+      isDemo: false,
 
-      setAuth: (user, token, team) => set({ user, token, team }),
+      setAuth: (user, token, team) => set({ user, token, team, isDemo: user?.isDemo ?? false }),
 
-      logout: () => set({ user: null, token: null, team: null }),
+      // Used by DemoLoginPage and other auto-login flows
+      login: ({ token, user, team }) =>
+        set({ token, user, team, isDemo: user?.isDemo ?? false }),
+
+      logout: () => set({ user: null, token: null, team: null, isDemo: false }),
     }),
     {
       name: 'adpilot_auth',

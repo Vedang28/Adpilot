@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import useAuthStore from './store/authStore';
 import AppLayout from './components/layout/AppLayout';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -9,6 +9,9 @@ import { useToast } from './components/ui/Toast';
 const LandingPage       = lazy(() => import('./pages/LandingPage'));
 const LoginPage         = lazy(() => import('./pages/LoginPage'));
 const RegisterPage      = lazy(() => import('./pages/RegisterPage'));
+const DemoLoginPage     = lazy(() => import('./pages/DemoLoginPage'));
+const OnboardingPage    = lazy(() => import('./pages/OnboardingPage'));
+const PricingPage       = lazy(() => import('./pages/PricingPage'));
 const DashboardPage     = lazy(() => import('./pages/DashboardPage'));
 const CampaignsPage     = lazy(() => import('./pages/CampaignsPage'));
 const AnalyticsPage     = lazy(() => import('./pages/AnalyticsPage'));
@@ -64,8 +67,22 @@ function ServerErrorListener() {
 
 // ─── Route guards ─────────────────────────────────────────────────────────────
 function ProtectedRoute({ children }) {
-  const token = useAuthStore((s) => s.token);
+  const { token, user, isDemo } = useAuthStore();
+  const location = useLocation();
+
   if (!token) return <Navigate to="/login" replace />;
+
+  // Redirect to onboarding ONLY for brand-new users (onboardingCompleted explicitly false)
+  // Null/undefined means old user pre-dating the feature — treat as already onboarded
+  if (
+    user &&
+    user.onboardingCompleted === false &&
+    !isDemo &&
+    location.pathname !== '/onboarding'
+  ) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return children;
 }
 
@@ -90,6 +107,11 @@ export default function App() {
           <Route path="/login"         element={<PublicRoute><ErrorBoundary><LoginPage /></ErrorBoundary></PublicRoute>} />
           <Route path="/register"      element={<PublicRoute><ErrorBoundary><RegisterPage /></ErrorBoundary></PublicRoute>} />
           <Route path="/accept-invite" element={<ErrorBoundary><AcceptInvitePage /></ErrorBoundary>} />
+          <Route path="/demo-login"    element={<ErrorBoundary><DemoLoginPage /></ErrorBoundary>} />
+          <Route path="/pricing"       element={<ErrorBoundary><PricingPage /></ErrorBoundary>} />
+
+          {/* Onboarding — protected but outside AppLayout */}
+          <Route path="/onboarding" element={<ProtectedRoute><ErrorBoundary><OnboardingPage /></ErrorBoundary></ProtectedRoute>} />
 
           {/* Protected inside AppLayout */}
           <Route
