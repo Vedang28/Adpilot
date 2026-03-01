@@ -217,8 +217,22 @@ function mapV2Audit(audit) {
     structureIssues,
     crawlStats,
     recommendations,
-    executiveSummary: audit.summary ?? null,
+    executiveSummary: _parseSummary(audit.summary),
   };
+}
+
+/**
+ * Parse the summary TEXT column back to an object.
+ * Returns null gracefully on any parse error.
+ */
+function _parseSummary(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw; // already parsed (future-proofing)
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 /**

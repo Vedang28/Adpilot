@@ -11,6 +11,7 @@ const CrawlEngine         = require('./engines/CrawlEngine');
 const TechnicalAnalyzer   = require('./engines/TechnicalAnalyzer');
 const PerformanceEngine   = require('./engines/PerformanceEngine');
 const ScoringEngine       = require('./engines/ScoringEngine');
+const SeoSummaryService   = require('../SeoSummaryService');
 
 /**
  * Statuses that indicate an audit is actively being processed.
@@ -267,16 +268,37 @@ class AuditOrchestrator {
       issueCount: auditScore.issueCount,
     });
 
-    // ── 7. SUMMARIZE (LLM stub) ─────────────────────────────────────────────
+    // ── 7. SUMMARIZE (LLM executive summary via Claude API) ─────────────────
     const summaryEnabled = featureFlags.seoSummary.enabled && limits.summaryEnabled;
     let summary = null;
 
     if (summaryEnabled) {
       await this._setStatus(ctx.auditId, 'summarizing', job, PROGRESS.summarizing);
-      // TODO: implement SeoSummaryService.summarize(issues, auditScore, crawlResult)
-      logger.debug('AuditOrchestrator: LLM summarizer not yet implemented', {
-        auditId: ctx.auditId,
-      });
+      try {
+        summary = await SeoSummaryService.generate({
+          url:             job.data.url,
+          overallScore:    Math.round(auditScore.overall),
+          grade:           auditScore.grade,
+          issues,
+          categoryScores: {
+            categories:  auditScore.categories,
+            issueCount:  auditScore.issueCount,
+          },
+          performanceData,
+          existingSummary: null,
+        });
+
+        logger.info('AuditOrchestrator: summary generated', {
+          auditId:   ctx.auditId,
+          hasSummary: !!summary,
+        });
+      } catch (summaryErr) {
+        // Summary failure is NON-FATAL — audit completes without it
+        logger.warn('AuditOrchestrator: summary generation failed — continuing', {
+          auditId: ctx.auditId,
+          err:     summaryErr.message,
+        });
+      }
     }
 
     // ── 8. PERSIST ──────────────────────────────────────────────────────────
@@ -307,7 +329,8 @@ class AuditOrchestrator {
         categoryScores,
         rawCrawlData,
         recommendations,
-        summary,
+        // summary column is TEXT — serialize the JSON object to a string
+        summary: summary ? JSON.stringify(summary) : null,
       },
     });
 

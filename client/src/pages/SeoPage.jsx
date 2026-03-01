@@ -102,11 +102,13 @@ function SeverityBadge({ severity }) {
 }
 
 // ─── New: Audit status badge ───────────────────────────────────────────────────
-const ACTIVE_STATUSES = ['pending', 'crawling', 'analyzing', 'scoring', 'summarizing'];
+const ACTIVE_STATUSES   = ['pending', 'crawling', 'analyzing', 'scoring', 'summarizing'];
+// API may return "complete" (v1) or "completed" (v2) — treat both as done.
+const COMPLETE_STATUSES = ['completed', 'complete'];
 
 function AuditStatusBadge({ status }) {
-  if (status === 'completed') return <span className="flex items-center gap-1 text-accent-green text-xs"><CheckCircle className="w-3 h-3" />Done</span>;
-  if (status === 'failed')    return <span className="flex items-center gap-1 text-red-400 text-xs"><AlertCircle className="w-3 h-3" />Failed</span>;
+  if (COMPLETE_STATUSES.includes(status)) return <span className="flex items-center gap-1 text-accent-green text-xs"><CheckCircle className="w-3 h-3" />Done</span>;
+  if (status === 'failed')                return <span className="flex items-center gap-1 text-red-400 text-xs"><AlertCircle className="w-3 h-3" />Failed</span>;
   return (
     <span className="flex items-center gap-1 text-accent-blue text-xs">
       <span className="w-1.5 h-1.5 rounded-full bg-accent-blue animate-pulse" />
@@ -356,7 +358,7 @@ function AuditResultPanel({ auditId, onClose, onComplete }) {
     enabled:  !!auditId,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      if (!status || ['completed', 'failed'].includes(status)) return false;
+      if (!status || [...COMPLETE_STATUSES, 'failed'].includes(status)) return false;
       return 3000;
     },
     refetchIntervalInBackground: false,
@@ -367,7 +369,7 @@ function AuditResultPanel({ auditId, onClose, onComplete }) {
   const prevStatusRef = useRef(null);
   useEffect(() => {
     if (!audit) return;
-    if (audit.status === 'completed' && prevStatusRef.current !== 'completed') {
+    if (COMPLETE_STATUSES.includes(audit.status) && !COMPLETE_STATUSES.includes(prevStatusRef.current)) {
       queryClient.invalidateQueries({ queryKey: ['seo', 'audits'] });
       onComplete?.();
     }
@@ -431,8 +433,13 @@ function AuditResultPanel({ auditId, onClose, onComplete }) {
           {!isLoading && audit?.status === 'failed' && <FailedState audit={audit} />}
 
           {/* Completed */}
-          {!isLoading && audit?.status === 'completed' && (
+          {!isLoading && COMPLETE_STATUSES.includes(audit?.status) && (
             <div className="p-5 space-y-7">
+
+              {/* ── LLM Executive Summary (when available) ────────────────── */}
+              {audit.executiveSummary && (
+                <ExecutiveSummaryPanel summary={audit.executiveSummary} />
+              )}
 
               {/* ── Overview: gauge + category bars ──────────────────────── */}
               <section className="card">
@@ -571,6 +578,95 @@ function AuditResultPanel({ auditId, onClose, onComplete }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── New: Effort badge for priority roadmap items ─────────────────────────────
+function EffortBadge({ effort }) {
+  const cfg = {
+    'quick-win':  { label: '⚡ Quick Win',   cls: 'bg-accent-green/10 text-accent-green border-accent-green/20' },
+    'medium':     { label: '🔨 Medium',      cls: 'bg-accent-blue/10  text-accent-blue  border-accent-blue/20' },
+    'heavy-lift': { label: '🏗️ Heavy Lift', cls: 'bg-orange-500/10   text-orange-400   border-orange-500/20' },
+  };
+  const c = cfg[effort] ?? cfg['medium'];
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${c.cls}`}>
+      {c.label}
+    </span>
+  );
+}
+
+function ImpactBadge({ impact }) {
+  const cfg = {
+    high:   'bg-red-500/10 text-red-400 border-red-500/20',
+    medium: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+    low:    'bg-text-secondary/10 text-text-secondary border-text-secondary/20',
+  };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${cfg[impact] ?? cfg.medium}`}>
+      {(impact ?? 'medium').charAt(0).toUpperCase() + (impact ?? 'medium').slice(1)} Impact
+    </span>
+  );
+}
+
+// ─── New: Executive Summary Panel ─────────────────────────────────────────────
+function ExecutiveSummaryPanel({ summary }) {
+  if (!summary) return null;
+  const { executiveSummary, priorityRoadmap, businessImpact } = summary;
+
+  return (
+    <section className="space-y-5">
+      {/* Executive summary paragraphs */}
+      {executiveSummary && (
+        <div className="card space-y-3">
+          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+            <FileText className="w-4 h-4 text-accent-blue" />
+            Executive Summary
+          </h3>
+          {executiveSummary.split('\n\n').filter(Boolean).map((para, i) => (
+            <p key={i} className="text-sm text-text-secondary leading-relaxed">{para.trim()}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Priority roadmap */}
+      {priorityRoadmap?.length > 0 && (
+        <div className="card space-y-3">
+          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-accent-blue" />
+            Priority Roadmap
+          </h3>
+          <ol className="space-y-3">
+            {priorityRoadmap.map((item, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="w-6 h-6 rounded-full bg-accent-blue/10 text-accent-blue text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                  {i + 1}
+                </span>
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <p className="text-sm font-medium text-text-primary leading-snug">{item.title}</p>
+                  <p className="text-xs text-text-secondary leading-relaxed">{item.description}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <EffortBadge effort={item.effort} />
+                    <ImpactBadge impact={item.impact} />
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {/* Business impact */}
+      {businessImpact && (
+        <div className="flex items-start gap-3 bg-orange-500/8 border border-orange-500/20 rounded-xl px-4 py-3.5">
+          <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-semibold text-orange-400 mb-1">Business Impact</p>
+            <p className="text-sm text-text-secondary leading-relaxed">{businessImpact}</p>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -718,9 +814,13 @@ function AuditsTab() {
         ) : (
           <div className="divide-y divide-border">
             {audits.map((audit) => {
-              const isSelected = selectedAuditId === audit.id;
-              const isRunning  = ACTIVE_STATUSES.includes(audit.status);
-              const issueTotal = audit.categoryScores?.issueCount?.total ?? null;
+              const isSelected  = selectedAuditId === audit.id;
+              const isComplete  = COMPLETE_STATUSES.includes(audit.status);
+              const isRunning   = ACTIVE_STATUSES.includes(audit.status);
+              // v1 API puts score/grade inside summary; v2 hoists them to top-level
+              const displayScore = audit.summary?.score ?? audit.overallScore ?? null;
+              const displayGrade = audit.summary?.grade ?? audit.grade ?? null;
+              const issueTotal   = audit.summary?.totalIssues ?? audit.categoryScores?.issueCount?.total ?? null;
 
               return (
                 <button
@@ -729,8 +829,8 @@ function AuditsTab() {
                   className={`w-full flex items-center gap-4 px-5 py-4 hover:bg-bg-secondary/40 transition-colors text-left ${isSelected ? 'bg-accent-blue/5 border-l-2 border-l-accent-blue' : ''}`}
                 >
                   {/* Score or status indicator */}
-                  {audit.status === 'completed' ? (
-                    <ScoreCircle score={audit.overallScore} />
+                  {isComplete ? (
+                    <ScoreCircle score={displayScore} />
                   ) : audit.status === 'failed' ? (
                     <div className="w-12 h-12 rounded-full border-2 border-red-400/40 flex items-center justify-center shrink-0">
                       <AlertCircle className="w-5 h-5 text-red-400" />
@@ -752,10 +852,10 @@ function AuditsTab() {
                   </div>
 
                   <div className="text-right shrink-0">
-                    {audit.status === 'completed' && (
+                    {isComplete && (
                       <>
-                        {audit.grade && (
-                          <p className="text-lg font-bold text-text-primary">{audit.grade}</p>
+                        {displayGrade && (
+                          <p className="text-lg font-bold text-text-primary">{displayGrade}</p>
                         )}
                         {issueTotal != null && (
                           <p className="text-xs text-text-secondary">{issueTotal} issue{issueTotal !== 1 ? 's' : ''}</p>

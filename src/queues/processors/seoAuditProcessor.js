@@ -34,9 +34,7 @@ module.exports = async function seoAuditProcessor(job) {
 
     return result;
   }
-
-  // ── Legacy path ──────────────────────────────────────────────────────────
-
+// ── Legacy path ──────────────────────────────────────────────────────────
 logger.info('SEO audit job started (legacy engine)', { jobId: job.id, teamId, url });
 
 const SeoAuditService = require('../../services/seo/SeoAuditService');
@@ -46,4 +44,4 @@ const audit = await SeoAuditService.audit(teamId, url, job.data.auditId);
 
 logger.info('SEO audit job done (legacy)', { jobId: job.id, score: audit.overallScore });
 return { auditId: audit.id, score: audit.overallScore };
-}
+};

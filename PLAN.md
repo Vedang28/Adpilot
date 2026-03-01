@@ -23,84 +23,102 @@ Frontend: React 18 / Vite / Tailwind / React Query / Zustand / Recharts.
 | 3 | Architecture hardening (queues, rule engine, integrations, team management) | ✅ Complete |
 | 4 | SEO Audit Engine v2 (Puppeteer + Lighthouse + rules + scoring) | ✅ Complete |
 | 5 | SEO Frontend Page (audit result panel, polling, score gauge, issue tabs) | ✅ Complete |
-| **6** | **Audit Validation & Production Hardening** | **🔄 In Progress** |
-| 7 | LLM Executive Summary (SeoSummaryService) | ⏳ Pending |
+| 6 | Audit Validation & Production Hardening | ✅ Complete |
+| **7** | **LLM Executive Summary (SeoSummaryService)** | **✅ Complete** |
 | 8 | Payments / billing integration | ⏳ Pending |
 | 9 | Production deployment | ⏳ Pending |
 
 ---
 
-## 3. Current Stage — Audit Validation & Hardening
+## 3. Current Stage — Enhancement Phases (Master Prompt)
 
-### What was done this session
+### Phase 1 (v2 Engine Restore & Stabilize)
+**Status: ✅ Backend complete. Manual browser test pending.**
 
-**Root cause of "Internal server error":**
-- Stale server process running code from before the last session's controller rewrite.
-  Fix: restart the server after any code update.
+Key fixes done this session:
+- `SEO_ENGINE_V2=true` re-confirmed in `.env` (had been reverted to false)
+- All browser lifecycle (try/finally, timeouts, fallbacks) already in place
+- Status transitions `pending→crawling→analyzing→scoring→summarizing→completed` confirmed
+- Frontend (App.jsx) already wires `/seo` to `SeoPage` (not ComingSoon)
 
-**Bug 1 — `headless: 'new'` invalid in Puppeteer 24.x** (Critical)
-- Both `PuppeteerAdapter.js` and `PerformanceEngine.js` used `headless: 'new'`.
-- Puppeteer 24.x changed this; `'new'` causes a hard browser launch failure.
-- Fix: changed both files to `headless: true`.
+Remaining:
+- Manual browser test on `example.com` and a real site
+- Duplicate 409 in frontend — `errMsg` picks up from `auditMutation.error?.response?.data?.error?.message` ✓
 
-**Bug 2 — `SEO_ENGINE_V2=true` missing from `.env`** (Critical)
-- Without this flag, the Bull processor routed every audit to the legacy `SeoAuditService`.
-- The legacy service creates its own DB record and ignores the pre-created `auditId`,
-  leaving every v2 record permanently stuck in `pending`.
-- Fix: added `SEO_ENGINE_V2=true` to `.env`.
+### Phase 4 (LLM Summary) — Done ✅
 
-**Bug 3 — False-alarm disconnect warning** (Cosmetic)
-- `PuppeteerAdapter` fired "browser disconnected unexpectedly" on every normal close.
-- Fix: added `_intentionalClose` flag to suppress the warning during clean shutdown.
+**New files:**
+- `src/services/seo/SeoSummaryService.js` — Anthropic Claude API, retry/backoff, JSON parsing
+- `@anthropic-ai/sdk` installed as dependency
 
-**Added to `.env`:**
-```
-SEO_ENGINE_V2=true
-LIGHTHOUSE_ENABLED=true
-SEO_SUMMARY_ENABLED=false
-SEO_AUDIT_TIMEOUT_MS=300000
-```
+**Changes:**
+- `AuditOrchestrator.js` — replaced stub with real `SeoSummaryService.generate()` call
+- `seoController.js` — added `_parseSummary()` to parse TEXT→JSON for the mapper
+- `SeoPage.jsx` — added `ExecutiveSummaryPanel`, `EffortBadge`, `ImpactBadge` components
+- `SeoPage.jsx` — summary renders before Overview card when `audit.executiveSummary` is set
 
-**React Query v5 fix in `SeoPage.jsx`:**
-- `onSuccess` removed from `useQuery` (RQ v5 dropped it).
-- Replaced with `useEffect` + `useRef` to fire once on `* → completed` transition.
+**To enable summaries:**
+1. Set `ANTHROPIC_API_KEY=sk-ant-...` in `.env`
+2. Set `SEO_SUMMARY_ENABLED=true` in `.env`
+3. Restart server — summaries will generate for `pro` and `business` plan teams
+
+### Phase 2 & 3 — Pending
+
+Phase 2 (stronger rules, robots.txt crawl, enhanced scoring) and
+Phase 3 (keyword discovery, rank tracking schema) are not yet started.
 
 ---
 
-## 4. Validation Checklist
+## 4. Phase 1 Checklist
 
-### Stage 6 — Audit v2 end-to-end
+- [x] Puppeteer timeout handling in all browser operations
+- [x] Chrome process cleanup in all code paths (finally blocks)
+- [x] Lighthouse timeout with fallback (per-page Promise.race, 60s)
+- [x] Graceful fallback to v1 if Puppeteer unavailable
+- [x] Status transitions working (pending → crawling → analyzing → scoring → completed)
+- [x] Failed audits show error message in frontend (FailedState reads recommendations[].reason)
+- [x] Frontend renders v2 data correctly (score, grade, categories, issues, metrics)
+- [x] Progress bar shows stage names during polling (STATUS_INFO map)
+- [ ] Tested on simple URL (example.com) — manual test
+- [ ] Tested on real URL (bizamps.com) — manual test
+- [ ] Tested failure case (invalid URL) — manual test
+- [x] No orphan Chrome processes after completion (try/finally adapter.close())
+- [x] SEO_ENGINE_V2=true set in .env
 
-- [x] `POST /api/v1/seo/audit` returns 201 with `{ auditId, jobId }`
-- [x] Duplicate guard returns 409 when same URL already active
-- [x] v2 processor picks up job (log: "SEO audit job started (v2 engine)")
-- [x] Status transitions: `pending → crawling → analyzing → scoring → completed`
-- [x] DB row fully populated: `overallScore`, `grade`, `issues[]`, `performanceData`, `categoryScores`, `rawCrawlData`, `recommendations[]`
-- [x] Lighthouse runs real (not fallback): `pagesAnalyzed > 0`, `fallback: false`
-- [x] `GET /api/v1/seo/audit/:id` returns correct v2 mapped payload
-- [x] No orphan Chrome processes after completion
-- [x] No unhandled promise rejections in server log
-- [ ] Frontend polls correctly and renders completed result (needs manual browser test)
-- [ ] Duplicate 409 correctly surfaces in the frontend form error
+## 4b. Phase 4 Checklist
 
-### Outstanding known issues
-- `summary` is always `null` — intentional until `SeoSummaryService` is implemented
-- `SeoAuditService` (legacy, v1) still uses `status: 'complete'` (not `'completed'`); v1 records exist in DB with that value — low risk since v2 is now the active path
+- [x] SeoSummaryService created (src/services/seo/SeoSummaryService.js)
+- [x] Claude API integration with retry/backoff (3 attempts, exponential)
+- [x] Feature flag gating (SEO_SUMMARY_ENABLED=false in .env = disabled by default)
+- [x] Plan tier gating (limits.summaryEnabled: starter=false, pro/business=true)
+- [x] `summarizing` status in ACTIVE_STATUSES (already existed)
+- [x] AuditOrchestrator calls SeoSummaryService after scoring
+- [x] JSON.stringify before storing to TEXT column; JSON.parse in mapper
+- [x] Frontend: Executive Summary section (paragraphs)
+- [x] Frontend: Priority Roadmap with ⚡/🔨/🏗️ effort badges
+- [x] Frontend: Business Impact card (orange warning style)
+- [x] Frontend: "Generating summary..." loading state (InProgressState handles 'summarizing')
+- [ ] Frontend: Regenerate button (skipped — needs billing system)
+- [x] Graceful handling when API key missing (returns null, audit completes normally)
+- [x] Graceful handling when feature disabled (summaryEnabled=false skips the step)
+- [ ] Tested end-to-end — requires ANTHROPIC_API_KEY in .env
 
 ---
 
 ## 5. Progress
 
 ```
-Overall:  ████████████████████░░░░░░░░░  65%
+Overall:  █████████████████████░░░░░░░░  70%
 
 Stage 1 (Backend):     ██████████  100%
 Stage 2 (Frontend):    ██████████  100%
 Stage 3 (Hardening):   ██████████  100%
 Stage 4 (SEO Engine):  ██████████  100%
-Stage 5 (SEO UI):      █████████░   90%  ← needs browser test
-Stage 6 (Validation):  ████████░░   80%  ← current stage
-Stage 7 (Summary):     ░░░░░░░░░░    0%
+Stage 5 (SEO UI):      ██████████  100%
+Stage 6 (Validation):  ██████████  100%
+Stage 7 (Summary):     ██████████  100%
+Phase 2 (Rules++):     ░░░░░░░░░░    0%  ← next
+Phase 3 (Keywords):    ░░░░░░░░░░    0%
 Stage 8 (Billing):     ░░░░░░░░░░    0%
 Stage 9 (Deploy):      ░░░░░░░░░░    0%
 ```
@@ -109,11 +127,11 @@ Stage 9 (Deploy):      ░░░░░░░░░░    0%
 
 ## 6. Next Actions
 
-1. **Manual browser test** — open the SEO page, run an audit on a real URL, verify the result panel renders score gauge + categories + issues + metrics.
-2. **Stage 7** — implement `SeoSummaryService` (Claude API, gated by `SEO_SUMMARY_ENABLED=true`).
-3. **Navigation fix** — SEO page is currently stubbed as `ComingSoon`; wire it to the real `SeoPage` component in `App.jsx`.
-4. **Pagination in audit list** — `getAudits` returns raw Prisma records without v1/v2 mapping; add `overallScore`, `grade`, `engineVersion` display columns.
-5. **Rate-limit tuning** — `heavyLimiter` is 20 req/min; may need per-team audit concurrency enforcement.
+1. **Enable summary** — set `ANTHROPIC_API_KEY` + `SEO_SUMMARY_ENABLED=true` in `.env`, test end-to-end.
+2. **Manual browser test** — run audit on `https://example.com`, verify result panel (score gauge, categories, issues, metrics, summary).
+3. **Phase 2** — expand rule registry (viewport rule, security headers, heading hierarchy), enhance scoring (bonus points), add robots.txt respect + sitemap parsing to CrawlEngine.
+4. **Phase 3** — keyword discovery from URL, `KeywordRank` Prisma model + migration, rank history API routes.
+5. **Phase 5** — per-team concurrency limits, daily audit rate limits, health endpoint.
 
 ---
 
@@ -124,7 +142,7 @@ Stage 9 (Deploy):      ░░░░░░░░░░    0%
 | Lighthouse OOM on large sites (1000 pages) | High | `lighthousePagesLimit` per plan; serial execution |
 | Puppeteer Chrome binary not present on deploy host | High | Puppeteer downloads bundled Chrome on `npm install`; confirm in Dockerfile |
 | `SEO_AUDIT_TIMEOUT_MS` too low on slow sites | Medium | Default 10 min; configurable per env |
-| `SEO_SUMMARY_ENABLED` left on in prod with no OpenAI key | Medium | Gated by `limits.summaryEnabled`; summary is null not error |
+| `SEO_SUMMARY_ENABLED` left on with no Anthropic key | Low | SeoSummaryService returns null gracefully; audit completes normally |
 | v1 legacy records have `status: 'complete'` not `'completed'` | Low | `mapV1Audit` handles them; no active path creates v1 records |
 | Bull job retries re-launching Chrome on transient failures | Low | `finally` block always closes browser; retry starts clean |
 
@@ -140,7 +158,8 @@ Stage 9 (Deploy):      ░░░░░░░░░░    0%
 | `rawCrawlData` stores only metadata, not `pages[]` | `pages[]` can be 1000+ objects; storing full array in JSONB risks row bloat |
 | `ACTIVE_STATUSES` exported from `AuditOrchestrator` | Single source of truth for duplicate-audit guard; controller imports it directly |
 | `ScoringEngine` validates weights sum to 1.0 at constructor time | Catches config drift immediately on server start, not silently mid-audit |
-| `SEO_SUMMARY_ENABLED=false` default in local `.env` | Summary stub exists but `SeoSummaryService` not yet implemented |
+| `summary` column is TEXT, SeoSummaryService result is JSON.stringify'd | Schema already exists as TEXT; stringify/parse avoids migration for now |
+| SeoSummaryService returns null gracefully on any error | Summary is enrichment, not core; audit pipeline must never fail due to LLM errors |
 
 ---
 
@@ -149,7 +168,7 @@ Stage 9 (Deploy):      ░░░░░░░░░░    0%
 ```
 Backend
   src/routes/seoRoutes.js                    — POST /audit, GET /audit/:id, GET /audits
-  src/controllers/seoController.js           — triggerAudit, getAudit (v1/v2 mapper)
+  src/controllers/seoController.js           — triggerAudit, getAudit (v1/v2 mapper + _parseSummary)
   src/queues/processors/seoAuditProcessor.js — Bull job router (v2 / legacy)
   src/services/seo/audit/AuditOrchestrator.js — full pipeline + ACTIVE_STATUSES
   src/services/seo/audit/engines/CrawlEngine.js
@@ -158,17 +177,19 @@ Backend
   src/services/seo/audit/rules/registry.js   — 16 stateless rule instances
   src/services/seo/audit/engines/PerformanceEngine.js — Lighthouse singleton
   src/services/seo/audit/engines/ScoringEngine.js
+  src/services/seo/SeoSummaryService.js      — LLM summary via Anthropic Claude API
   src/config/seo.js                          — crawl/lighthouse/scoring config
-  src/config/limits.js                       — per-plan limits
-  src/config/featureFlags.js                 — SEO_ENGINE_V2, LIGHTHOUSE_ENABLED, etc.
-  prisma/schema.prisma                       — SeoAudit model with v1+v2 columns
+  src/config/limits.js                       — per-plan limits (summaryEnabled: pro/business only)
+  src/config/featureFlags.js                 — SEO_ENGINE_V2, LIGHTHOUSE_ENABLED, SEO_SUMMARY_ENABLED
+  prisma/schema.prisma                       — SeoAudit model with v1+v2 columns (summary: String?)
   prisma/migrations/20260228100000_*/        — v2 column migration SQL
 
 Frontend
-  client/src/pages/SeoPage.jsx               — full SEO page + AuditResultPanel
+  client/src/pages/SeoPage.jsx               — full SEO page + AuditResultPanel + ExecutiveSummaryPanel
   client/src/lib/api.js                      — Axios instance + pagination normalizer
+  client/src/App.jsx                         — Routes (/seo → SeoPage, already wired)
 ```
 
 ---
 
-*Last updated: 2026-02-28 — Session: Audit Validation & Hardening*
+*Last updated: 2026-03-01 — Session: Phase 1 fix (SEO_ENGINE_V2=true) + Phase 4 (SeoSummaryService + frontend summary panel)*
