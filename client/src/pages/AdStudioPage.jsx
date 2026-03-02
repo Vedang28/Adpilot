@@ -7,6 +7,8 @@ import {
 import api from '../lib/api';
 import { useToast } from '../components/ui/Toast';
 import Badge from '../components/ui/Badge';
+import FeatureHeader from '../components/ui/FeatureHeader';
+import { FEATURES } from '../config/features';
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 function ConfirmDialog({ title, message, onConfirm, onCancel }) {
@@ -342,17 +344,19 @@ const TABS = ['All Ads', 'Generate', 'A/B Tests'];
 export default function AdStudioPage() {
   const [activeTab, setActiveTab] = useState('Generate');
 
+  const feature = FEATURES.forge;
+
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-accent-blue/10 flex items-center justify-center">
-          <Zap className="w-5 h-5 text-accent-blue" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-text-primary">Ad Studio</h1>
-          <p className="text-sm text-text-secondary">Generate, manage, and A/B test your ads</p>
-        </div>
-      </div>
+      <FeatureHeader
+        codename={feature.codename}
+        label={feature.label}
+        description={feature.description}
+        color={feature.color}
+        icon={Zap}
+        badge={feature.badge}
+        stats={feature.stats}
+      />
 
       <div className="border-b border-border">
         <div className="flex gap-1">

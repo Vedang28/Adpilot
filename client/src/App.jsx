@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import useAuthStore from './store/authStore';
 import AppLayout from './components/layout/AppLayout';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useToast } from './components/ui/Toast';
+import CommandPalette from './components/ui/CommandPalette';
 
 // ─── Lazy page imports ────────────────────────────────────────────────────────
 const LandingPage       = lazy(() => import('./pages/LandingPage'));
@@ -92,10 +93,31 @@ function PublicRoute({ children }) {
   return children;
 }
 
+// ─── Global ⌘K / Ctrl+K command palette listener ─────────────────────────────
+function CommandPaletteController() {
+  const [open, setOpen] = useState(false);
+  const { token } = useAuthStore();
+
+  useEffect(() => {
+    if (!token) return;
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setOpen((o) => !o);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [token]);
+
+  return <CommandPalette open={open} onClose={() => setOpen(false)} />;
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <>
+      <CommandPaletteController />
       <OfflineBanner />
       <ServerErrorListener />
       <Suspense fallback={<PageSpinner />}>

@@ -7,6 +7,8 @@ import {
 import api from '../lib/api';
 import { useToast } from '../components/ui/Toast';
 import Badge from '../components/ui/Badge';
+import FeatureHeader from '../components/ui/FeatureHeader';
+import { FEATURES } from '../config/features';
 
 // ─── Competitor section ───────────────────────────────────────────────────────
 function ConfirmDialog({ title, message, onConfirm, onCancel }) {
@@ -455,18 +457,19 @@ const TABS = ['Competitors', 'Market Research', 'Ad Intelligence'];
 
 export default function ResearchPage() {
   const [activeTab, setActiveTab] = useState('Competitors');
+  const feature = FEATURES.pulse;
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-accent-purple/10 flex items-center justify-center">
-          <TrendingUp className="w-5 h-5 text-accent-purple" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-text-primary">Research Hub</h1>
-          <p className="text-sm text-text-secondary">Competitor analysis, market intelligence, and ad research</p>
-        </div>
-      </div>
+      <FeatureHeader
+        codename={feature.codename}
+        label={feature.label}
+        description={feature.description}
+        color={feature.color}
+        icon={Search}
+        badge={feature.badge}
+        stats={feature.stats}
+      />
 
       <div className="border-b border-border">
         <div className="flex gap-1">

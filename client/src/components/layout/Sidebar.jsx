@@ -1,13 +1,14 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Megaphone, BarChart2,
-  Sparkles, ShieldAlert, TrendingUp,
+  Wand2, ShieldAlert, TrendingUp,
   Shield, Search, Crosshair,
-  Sliders, Plug, Users, Settings,
-  LogOut, X, Zap,
+  Zap, Plug, Users, Settings,
+  LogOut, X,
 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 
+// ─── Nav structure with Phase K feature identity ────────────────────────────
 const NAV_GROUPS = [
   {
     label: null,
@@ -18,38 +19,71 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'AI TOOLS',
+    label: 'AI FEATURES',
     items: [
-      { path: '/ads',       icon: Sparkles,   label: 'Ad Studio' },
-      { path: '/budget-ai', icon: ShieldAlert, label: 'Budget AI',       badge: 'NEW', badgeColor: 'orange' },
-      { path: '/scaling',   icon: TrendingUp,  label: 'Scale Predictor', badge: 'NEW', badgeColor: 'green' },
+      {
+        path: '/ads',       icon: Wand2,      label: 'Forge',
+        sublabel: 'Ad Studio',
+      },
+      {
+        path: '/budget-ai', icon: ShieldAlert, label: 'Sentinel',
+        sublabel: 'Budget Guardian',
+        badge: 'LIVE', badgeColor: 'red', liveDot: true,
+      },
+      {
+        path: '/scaling',   icon: TrendingUp,  label: 'Apex',
+        sublabel: 'Scale Predictor',
+        badge: 'AI', badgeColor: 'amber',
+      },
     ],
   },
   {
     label: 'INTELLIGENCE',
     items: [
-      { path: '/seo',               icon: Shield,   label: 'SEO Intelligence' },
-      { path: '/research',          icon: Search,   label: 'Research Hub' },
-      { path: '/competitor-hijack', icon: Crosshair, label: 'Competitor Intel', badge: 'NEW', badgeColor: 'red' },
+      {
+        path: '/seo',               icon: Shield,    label: 'Beacon',
+        sublabel: 'SEO Intelligence',
+      },
+      {
+        path: '/research',          icon: Search,    label: 'Pulse',
+        sublabel: 'Research Hub',
+      },
+      {
+        path: '/competitor-hijack', icon: Crosshair, label: 'Radar',
+        sublabel: 'Competitor Intel',
+        badge: 'BETA', badgeColor: 'purple',
+      },
     ],
   },
   {
     label: 'SETTINGS',
     items: [
-      { path: '/rules',        icon: Sliders,  label: 'Rules' },
+      { path: '/rules',        icon: Zap,      label: 'Rules'        },
       { path: '/integrations', icon: Plug,     label: 'Integrations' },
-      { path: '/team',         icon: Users,    label: 'Team' },
-      { path: '/settings',     icon: Settings, label: 'Settings' },
+      { path: '/team',         icon: Users,    label: 'Team'         },
+      { path: '/settings',     icon: Settings, label: 'Settings'     },
     ],
   },
 ];
 
+// Static Tailwind badge classes — no template literals (JIT requires literals)
 const BADGE_STYLES = {
-  orange: 'bg-orange-500/10 text-orange-400 border border-orange-500/20',
-  green:  'bg-green-500/10  text-green-400  border border-green-500/20',
   red:    'bg-red-500/10    text-red-400    border border-red-500/20',
+  amber:  'bg-amber-500/10  text-amber-400  border border-amber-500/20',
+  purple: 'bg-purple-500/10 text-purple-400 border border-purple-500/20',
   blue:   'bg-blue-500/10   text-blue-400   border border-blue-500/20',
+  green:  'bg-green-500/10  text-green-400  border border-green-500/20',
 };
+
+// Animated live dot for Sentinel
+function LiveDot() {
+  return (
+    <span className="relative flex h-2 w-2 shrink-0">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+    </span>
+  );
+}
 
 export default function Sidebar({ open, onClose }) {
   const { user, team, logout, isDemo } = useAuthStore();
@@ -80,21 +114,28 @@ export default function Sidebar({ open, onClose }) {
         ${open ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static lg:z-auto
       `}>
-        {/* Logo */}
+        {/* ── Logo ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
+            {/* A/P airplane logo */}
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600
-                            flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
+                            flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4 text-white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 2L11 13" />
+                <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+              </svg>
             </div>
-            <span className="font-bold text-base text-text-primary tracking-tight">AdPilot</span>
+            <div>
+              <span className="font-bold text-sm text-text-primary tracking-tight leading-none">AdPilot</span>
+              <span className="block text-[10px] text-text-secondary leading-none mt-0.5">AI Command Center</span>
+            </div>
           </div>
           <button onClick={onClose} className="lg:hidden text-text-secondary hover:text-text-primary transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Team pill */}
+        {/* ── Team pill ─────────────────────────────────────────────────── */}
         {team && (
           <div className="mx-3 mt-3 px-3 py-2 bg-bg-card border border-border rounded-xl">
             <p className="text-[10px] text-text-secondary uppercase tracking-wider font-medium">Workspace</p>
@@ -105,7 +146,7 @@ export default function Sidebar({ open, onClose }) {
           </div>
         )}
 
-        {/* Nav groups */}
+        {/* ── Nav groups ────────────────────────────────────────────────── */}
         <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
           {NAV_GROUPS.map((group, gi) => (
             <div key={gi} className={gi > 0 ? 'pt-2' : ''}>
@@ -114,7 +155,7 @@ export default function Sidebar({ open, onClose }) {
                   {group.label}
                 </p>
               )}
-              {group.items.map(({ path, icon: Icon, label, badge, badgeColor }) => (
+              {group.items.map(({ path, icon: Icon, label, sublabel, badge, badgeColor, liveDot }) => (
                 <NavLink
                   key={path}
                   to={path}
@@ -129,9 +170,17 @@ export default function Sidebar({ open, onClose }) {
                   }
                 >
                   <Icon className="shrink-0 w-[17px] h-[17px]" />
-                  <span className="flex-1 truncate">{label}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="block truncate leading-tight">{label}</span>
+                    {sublabel && (
+                      <span className="block text-[10px] text-text-secondary/60 leading-tight font-normal truncate">
+                        {sublabel}
+                      </span>
+                    )}
+                  </div>
+                  {liveDot && <LiveDot />}
                   {badge && (
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${BADGE_STYLES[badgeColor]}`}>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${BADGE_STYLES[badgeColor] ?? BADGE_STYLES.blue}`}>
                       {badge}
                     </span>
                   )}
@@ -141,25 +190,25 @@ export default function Sidebar({ open, onClose }) {
           ))}
         </nav>
 
-        {/* Upgrade banner */}
+        {/* ── Upgrade banner ────────────────────────────────────────────── */}
         {showUpgradeBanner && !isDemo && (
           <div className="mx-3 mb-3 p-3 rounded-xl border border-purple-500/20
                           bg-gradient-to-br from-purple-600/20 via-purple-600/10 to-blue-600/20">
             <p className="text-xs font-semibold text-white/80">Upgrade to Growth</p>
             <p className="text-[11px] text-white/40 mt-0.5 mb-2.5 leading-snug">
-              Unlock Budget AI + unlimited campaigns
+              Unlock Sentinel AI + unlimited campaigns
             </p>
             <button
               onClick={() => navigate('/pricing')}
-              className="w-full text-xs py-1.5 px-3 rounded-lg bg-purple-600 hover:bg-purple-500
-                         text-white font-semibold transition-colors"
+              className="w-full text-xs py-1.5 px-3 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500
+                         text-white font-semibold transition-all"
             >
               See Plans →
             </button>
           </div>
         )}
 
-        {/* User section */}
+        {/* ── User section ──────────────────────────────────────────────── */}
         <div className="px-4 py-3 border-t border-border">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600

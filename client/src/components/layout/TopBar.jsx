@@ -1,21 +1,28 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, Menu, CheckCheck } from 'lucide-react';
+import { Bell, Menu, CheckCheck, Search } from 'lucide-react';
 import { useLocation, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import useAuthStore from '../../store/authStore';
 import api from '../../lib/api';
 
 const routeTitles = {
-  '/dashboard':    'Dashboard',
-  '/campaigns':    'Campaigns',
-  '/ads':          'Ad Studio',
-  '/research':     'Research Hub',
-  '/seo':          'SEO Intelligence',
-  '/analytics':    'Analytics',
-  '/settings':     'Settings',
-  '/rules':        'Rules',
-  '/integrations': 'Integrations',
-  '/team':         'Team',
+  '/dashboard':        'Dashboard',
+  '/campaigns':        'Campaigns',
+  '/analytics':        'Analytics',
+  // AI Features
+  '/ads':              'Forge — Ad Studio',
+  '/budget-ai':        'Sentinel — Budget Guardian',
+  '/scaling':          'Apex — Scale Predictor',
+  // Intelligence
+  '/seo':              'Beacon — SEO Intelligence',
+  '/research':         'Pulse — Research Hub',
+  '/competitor-hijack':'Radar — Competitor Intel',
+  // Settings
+  '/settings':         'Settings',
+  '/rules':            'Rules',
+  '/integrations':     'Integrations',
+  '/team':             'Team',
+  '/notifications':    'Notifications',
 };
 
 function timeAgo(dateStr) {
@@ -91,6 +98,16 @@ export default function TopBar({ onMenuClick }) {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* ── ⌘K hint ──────────────────────────────────────────────────────── */}
+        <button
+          onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true, bubbles: true }))}
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-secondary border border-border text-xs text-text-secondary hover:text-text-primary hover:border-accent-blue/40 transition-all"
+        >
+          <Search className="w-3.5 h-3.5" />
+          <span>Search</span>
+          <kbd className="text-[10px] font-mono px-1 py-0.5 rounded bg-bg-card border border-border ml-1">⌘K</kbd>
+        </button>
+
         {/* ── Notification bell ────────────────────────────────────────────── */}
         <div className="relative" ref={dropdownRef}>
           <button

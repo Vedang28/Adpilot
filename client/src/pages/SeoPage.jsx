@@ -13,6 +13,8 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import api from '../lib/api';
+import FeatureHeader from '../components/ui/FeatureHeader';
+import { FEATURES } from '../config/features';
 
 // ─── Existing shared helpers (unchanged) ──────────────────────────────────────
 
@@ -2145,17 +2147,19 @@ export default function SeoPage() {
   const autoRun    = searchParams.get('autorun') === 'true';
   const [activeTab, setActiveTab] = useState('Audits');
 
+  const feature = FEATURES.beacon;
+
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-accent-green/10 flex items-center justify-center">
-          <Shield className="w-5 h-5 text-accent-green" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-text-primary">SEO Intelligence</h1>
-          <p className="text-sm text-text-secondary">Audits, keyword tracking, and competitive gaps</p>
-        </div>
-      </div>
+      <FeatureHeader
+        codename={feature.codename}
+        label={feature.label}
+        description={feature.description}
+        color={feature.color}
+        icon={Shield}
+        badge={feature.badge}
+        stats={feature.stats}
+      />
 
       <div className="border-b border-border">
         <div className="flex gap-1">

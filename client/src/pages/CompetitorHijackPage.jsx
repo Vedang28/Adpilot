@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Crosshair, Search, Target, Sparkles, CheckCircle2, ChevronRight,
-  TrendingUp, DollarSign, Key, Loader2, ExternalLink, FlaskConical,
+  Crosshair, Search, Target, Sparkles, CheckCircle2,
+  TrendingUp, DollarSign, Key, Loader2, FlaskConical,
 } from 'lucide-react';
 import api from '../lib/api';
 import { useToast } from '../components/ui/Toast';
 import Badge from '../components/ui/Badge';
+import FeatureHeader from '../components/ui/FeatureHeader';
+import { FEATURES } from '../config/features';
 
 // ─── Progress steps animation ─────────────────────────────────────────────────
 const STEPS = [
@@ -72,53 +74,30 @@ export default function CompetitorHijackPage() {
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to add keyword'),
   });
 
-  const waitlistKey = 'hijack_waitlist';
-  const [onWaitlist, setOnWaitlist] = useState(() => !!localStorage.getItem(waitlistKey));
-
-  const joinWaitlist = () => {
-    localStorage.setItem(waitlistKey, '1');
-    setOnWaitlist(true);
-    toast.success("You're on the waitlist! We'll notify you when this launches.");
-  };
+  const feature = FEATURES.radar;
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-            <Crosshair className="w-5 h-5 text-red-400" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-text-primary">Competitor Hijack Engine</h1>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
-            </div>
-            <p className="text-sm text-text-secondary">Detect competitor weaknesses and auto-generate campaigns to steal their traffic</p>
-          </div>
-        </div>
-        <button
-          onClick={joinWaitlist}
-          disabled={onWaitlist}
-          className={`text-sm px-4 py-2 rounded-lg font-medium transition-colors ${
-            onWaitlist
-              ? 'bg-accent-green/10 text-accent-green border border-accent-green/20 cursor-default'
-              : 'btn-secondary'
-          }`}
-        >
-          {onWaitlist ? <><CheckCircle2 className="w-4 h-4 inline mr-1.5" />On Waitlist</> : 'Join Waitlist'}
-        </button>
-      </div>
+      {/* ── Feature Header ──────────────────────────────────────────────── */}
+      <FeatureHeader
+        codename={feature.codename}
+        label={feature.label}
+        description={feature.description}
+        color={feature.color}
+        icon={Crosshair}
+        badge={feature.badge}
+        stats={feature.stats}
+      />
 
-      {/* ── Beta banner ────────────────────────────────────────────────── */}
+      {/* ── Beta notice ────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
         <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
           <FlaskConical className="w-4 h-4 text-amber-400" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-amber-400">Beta Feature</p>
+          <p className="text-sm font-semibold text-amber-400">Early Access</p>
           <p className="text-xs text-white/40 mt-0.5">
-            Competitor intelligence is in early access. Data shown is illustrative. Full Meta Ad Library integration coming soon.
+            Radar is in early access. Data shown is illustrative. Full Meta Ad Library integration coming soon.
           </p>
         </div>
       </div>

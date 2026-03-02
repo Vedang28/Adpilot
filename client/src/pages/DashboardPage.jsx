@@ -3,11 +3,12 @@ import {
   Zap, Shield, DollarSign, AlertTriangle,
   Search, Wand2, TrendingUp, ArrowRight,
   Activity, CheckCircle2, Clock, PauseCircle,
-  Bell, ShieldAlert,
+  Bell, ShieldAlert, Crosshair,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../lib/api';
 import Badge from '../components/ui/Badge';
+import { FEATURE_LIST, COLOR_MAP } from '../config/features';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function timeAgo(dateStr) {
@@ -48,6 +49,40 @@ function StatusCard({ icon: Icon, iconBg, iconColor, label, value, sub, pulse })
         {sub && <p className="text-xs text-text-secondary mt-1">{sub}</p>}
       </div>
     </div>
+  );
+}
+
+// ─── System Status Pillar ──────────────────────────────────────────────────────
+// Static icon map (cannot import by name from FEATURES at runtime in JSX)
+const FEATURE_ICONS = {
+  sentinel: ShieldAlert,
+  apex:     TrendingUp,
+  radar:    Crosshair,
+  beacon:   Shield,
+  forge:    Wand2,
+  pulse:    Search,
+};
+
+function SystemStatusPillar({ feature, hasData }) {
+  const c    = COLOR_MAP[feature.color] ?? {};
+  const Icon = FEATURE_ICONS[feature.id] ?? Zap;
+  const navigate = useNavigate();
+
+  return (
+    <button
+      onClick={() => navigate(feature.path)}
+      className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all duration-200
+        hover:scale-105 ${c.bg} ${c.border} group`}
+    >
+      <div className={`w-9 h-9 rounded-xl ${c.iconBg} flex items-center justify-center`}>
+        <Icon className={`w-4 h-4 ${c.text}`} />
+      </div>
+      <div className="text-center">
+        <p className={`text-[11px] font-bold ${c.text}`}>{feature.codename}</p>
+        <p className="text-[9px] text-text-secondary leading-tight">{feature.sublabel}</p>
+      </div>
+      <div className="w-1.5 h-1.5 rounded-full bg-current opacity-50 group-hover:opacity-100 transition-opacity" />
+    </button>
   );
 }
 
@@ -152,6 +187,19 @@ export default function DashboardPage() {
         <p className="text-sm text-text-secondary mt-0.5">Live status across your campaigns and SEO</p>
       </div>
 
+      {/* ── AI System Status ────────────────────────────────────────────────── */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">AI Systems</p>
+          <span className="text-[10px] text-text-secondary">Click any feature to open</span>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {FEATURE_LIST.map((f) => (
+            <SystemStatusPillar key={f.id} feature={f} hasData />
+          ))}
+        </div>
+      </div>
+
       {/* ── TOP ROW: Live Status Cards ──────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {loadingOverview ? (
@@ -200,25 +248,25 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <ActionCard
           icon={Shield}
-          iconBg="bg-accent-purple/10"
-          iconColor="text-accent-purple"
-          title="Run SEO Audit"
+          iconBg="bg-cyan-500/10"
+          iconColor="text-cyan-400"
+          title="Beacon — SEO Audit"
           desc="Crawl your site, detect issues, and get an AI-powered executive summary."
           to="/seo"
         />
         <ActionCard
           icon={Wand2}
-          iconBg="bg-accent-blue/10"
-          iconColor="text-accent-blue"
-          title="Generate Ads"
-          desc="Use AI to generate high-quality ad variations for Meta, Google, and more."
+          iconBg="bg-orange-500/10"
+          iconColor="text-orange-400"
+          title="Forge — Generate Ads"
+          desc="AI generates high-converting ad copy for Meta, Google, and more."
           to="/ads"
         />
         <ActionCard
           icon={ShieldAlert}
-          iconBg="bg-yellow-500/10"
-          iconColor="text-yellow-400"
-          title="Budget Protection AI"
+          iconBg="bg-red-500/10"
+          iconColor="text-red-400"
+          title="Sentinel — Budget Guard"
           desc="Automatically pause campaigns that exceed CPA or ROAS thresholds."
           to="/budget-ai"
         />

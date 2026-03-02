@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   TrendingUp, CheckCircle2, AlertTriangle, XCircle,
-  Sparkles, ChevronRight, X, RefreshCw,
+  Sparkles, ChevronRight, RefreshCw,
 } from 'lucide-react';
 import api from '../lib/api';
 import { useToast } from '../components/ui/Toast';
 import Badge from '../components/ui/Badge';
+import FeatureHeader from '../components/ui/FeatureHeader';
+import EmptyState from '../components/ui/EmptyState';
+import { SkeletonFeatureCard } from '../components/ui/Skeleton';
+import { FEATURES } from '../config/features';
 
 // ─── Score gauge (SVG circle) ─────────────────────────────────────────────────
 function ScoreGauge({ score }) {
@@ -247,48 +251,28 @@ export default function ScalingPredictorPage() {
   const caution   = campaigns.filter((c) => c.score >= 50 && c.score < 70).length;
   const notReady  = campaigns.filter((c) => c.score < 50).length;
 
-  const waitlistKey = 'scaling_waitlist';
-  const [onWaitlist, setOnWaitlist] = useState(() => !!localStorage.getItem(waitlistKey));
-  const joinWaitlist = () => {
-    localStorage.setItem(waitlistKey, '1');
-    setOnWaitlist(true);
-    toast.success("You're on the waitlist! We'll notify you when Scaling Predictor launches.");
-  };
+  const feature = FEATURES.apex;
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent-green/10 flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-accent-green" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-text-primary">Scaling Predictor</h1>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent-green/10 text-accent-green border border-accent-green/20">BETA</span>
-            </div>
-            <p className="text-sm text-text-secondary">AI tells you exactly when and how much to scale each campaign</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={joinWaitlist}
-            disabled={onWaitlist}
-            className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-colors ${
-              onWaitlist ? 'bg-accent-green/10 text-accent-green border border-accent-green/20 cursor-default' : 'btn-secondary'
-            }`}
-          >
-            {onWaitlist ? <><CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />Waitlisted</> : 'Join Waitlist'}
-          </button>
-          <button
-            onClick={() => refetch()}
-            className="btn-secondary flex items-center gap-1.5 text-sm"
-          >
-            <RefreshCw className="w-4 h-4" />Refresh
-          </button>
-        </div>
-      </div>
+      {/* ── Feature Header ──────────────────────────────────────────────── */}
+      <FeatureHeader
+        codename={feature.codename}
+        label={feature.label}
+        description={feature.description}
+        color={feature.color}
+        icon={TrendingUp}
+        badge={feature.badge}
+        stats={feature.stats}
+        actions={[
+          {
+            label: 'Refresh',
+            onClick: () => refetch(),
+            variant: 'secondary',
+            icon: RefreshCw,
+          },
+        ]}
+      />
 
       {/* ── Overview stats ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -318,13 +302,16 @@ export default function ScalingPredictorPage() {
       {/* ── Campaign cards ─────────────────────────────────────────────── */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-40 rounded-xl" />)}
+          {[...Array(4)].map((_, i) => <SkeletonFeatureCard key={i} />)}
         </div>
       ) : campaigns.length === 0 ? (
-        <div className="card py-16 text-center">
-          <TrendingUp className="w-10 h-10 mx-auto mb-3 text-text-secondary opacity-30" />
-          <p className="font-semibold text-text-primary">No active campaigns</p>
-          <p className="text-sm text-text-secondary mt-1">Create and launch campaigns to see scaling predictions</p>
+        <div className="card p-0">
+          <EmptyState
+            icon={TrendingUp}
+            title="No active campaigns"
+            description="Create and launch campaigns to see AI scaling predictions and safe budget ranges."
+            color="amber"
+          />
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

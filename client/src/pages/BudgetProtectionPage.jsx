@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ShieldAlert, AlertTriangle, CheckCircle2, Plus, Trash2, ToggleLeft, ToggleRight,
-  Zap, Bell, TrendingDown, RefreshCw, X, ChevronRight, Clock,
+  Zap, Bell, TrendingDown, RefreshCw, X, Clock,
 } from 'lucide-react';
 import api from '../lib/api';
 import { useToast } from '../components/ui/Toast';
 import Badge from '../components/ui/Badge';
+import FeatureHeader from '../components/ui/FeatureHeader';
+import EmptyState from '../components/ui/EmptyState';
+import { FEATURES } from '../config/features';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function timeAgo(dateStr) {
@@ -230,30 +233,30 @@ export default function BudgetProtectionPage() {
     ? { bg: 'bg-yellow-500/10 border-yellow-500/30', icon: AlertTriangle, iconClass: 'text-yellow-400', text: `${alertCount} warning${alertCount !== 1 ? 's' : ''} detected`, textClass: 'text-yellow-300' }
     : { bg: 'bg-green-500/10 border-green-500/30', icon: CheckCircle2, iconClass: 'text-accent-green', text: 'All campaigns healthy', textClass: 'text-accent-green' };
 
+  const feature = FEATURES.sentinel;
+
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-            <ShieldAlert className="w-5 h-5 text-orange-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-text-primary">Budget Protection AI</h1>
-            <p className="text-xs text-text-secondary">
-              {scan?.scannedAt ? `Last scan: ${timeAgo(scan.scannedAt)}` : 'Run a scan to check campaign health'}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => runScan()}
-          disabled={scanning}
-          className="btn-primary flex items-center gap-2 text-sm"
-        >
-          <RefreshCw className={`w-4 h-4 ${scanning ? 'animate-spin' : ''}`} />
-          {scanning ? 'Scanning…' : 'Scan Now'}
-        </button>
-      </div>
+      {/* ── Feature Header ──────────────────────────────────────────────── */}
+      <FeatureHeader
+        codename={feature.codename}
+        label={feature.label}
+        description={feature.description}
+        color={feature.color}
+        icon={ShieldAlert}
+        badge={feature.badge}
+        stats={feature.stats}
+        status={scan?.scannedAt ? `Last scan: ${timeAgo(scan.scannedAt)}` : undefined}
+        actions={[
+          {
+            label: scanning ? 'Scanning…' : 'Scan Now',
+            onClick: () => runScan(),
+            disabled: scanning,
+            variant: 'primary',
+            icon: RefreshCw,
+          },
+        ]}
+      />
 
       {/* ── Status Banner ──────────────────────────────────────────────── */}
       {scan && (
@@ -274,10 +277,14 @@ export default function BudgetProtectionPage() {
             {[...Array(2)].map((_, i) => <div key={i} className="skeleton h-24 rounded-xl" />)}
           </div>
         ) : (scan?.alerts ?? []).length === 0 ? (
-          <div className="card py-10 text-center">
-            <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-accent-green" />
-            <p className="text-sm font-medium text-text-primary">No alerts — your campaigns are healthy</p>
-            <p className="text-xs text-text-secondary mt-1">Run a scan or create alert rules below to monitor performance</p>
+          <div className="card p-0">
+            <EmptyState
+              icon={CheckCircle2}
+              title="All campaigns healthy"
+              description="No budget issues detected. Run a scan or create alert rules below to continuously monitor performance."
+              color="green"
+              compact
+            />
           </div>
         ) : (
           <div className="space-y-3">
@@ -309,10 +316,13 @@ export default function BudgetProtectionPage() {
             {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-14 rounded-lg" />)}
           </div>
         ) : rules.length === 0 ? (
-          <div className="py-10 text-center text-text-secondary text-sm">
-            <Bell className="w-7 h-7 mx-auto mb-2 opacity-30" />
-            No rules yet — add your first alert rule to start protecting campaigns
-          </div>
+          <EmptyState
+            icon={Bell}
+            title="No alert rules yet"
+            description="Add your first alert rule to start automatically protecting campaigns from budget bleeding."
+            color="red"
+            compact
+          />
         ) : (
           <div className="divide-y divide-border">
             {rules.map((rule) => (
