@@ -100,18 +100,82 @@ class OllamaService {
    */
   parseJSON(raw) {
     if (!raw) return null;
+
+    // Strip markdown code fences that models often add
+    const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+
+    // Find the first { or [
+    const start = cleaned.search(/[\[{]/);
+    if (start === -1) return null;
+    const isArray = cleaned[start] === '[';
+    const end = isArray ? cleaned.lastIndexOf(']') : cleaned.lastIndexOf('}');
+    if (end === -1 || end < start) return null;
+
+    const slice = cleaned.slice(start, end + 1);
+
+    // 1. Try direct parse
+    try { return JSON.parse(slice); } catch { /* fall through to repair */ }
+
+    // 2. Repair: fix unescaped double quotes inside string values (common llama3 issue)
+    //    State-machine walk: track when we're inside a JSON string and escape stray "
     try {
-      // Strip markdown code fences that models often add
-      const cleaned = raw.replace(/```json\s*|```\s*/g, '').trim();
-      // Find the first { or [ and the last } or ]
-      const start = cleaned.search(/[\[{]/);
-      const end   = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
-      if (start === -1 || end === -1) return null;
-      return JSON.parse(cleaned.slice(start, end + 1));
-    } catch {
-      logger.error('OllamaService: JSON parse failed', { raw: raw.substring(0, 200) });
-      return null;
+      let result = '';
+      let inString = false;
+      let afterColon = false; // just finished a key, next string is a value
+      for (let i = 0; i < slice.length; i++) {
+        const ch = slice[i];
+        if (!inString) {
+          if (ch === '"') { inString = true; }
+          else if (ch === ':') { afterColon = true; }
+          else if (ch !== ' ' && ch !== '\t' && ch !== '\n' && ch !== '\r') { afterColon = false; }
+          result += ch;
+        } else {
+          if (ch === '\\') {
+            // Keep escape sequence
+            result += ch + (slice[i + 1] || '');
+            i++;
+          } else if (ch === '"') {
+            // Is this the closing quote or an unescaped quote mid-value?
+            // Heuristic: if next non-space char is , } ] :  → it's closing
+            let j = i + 1;
+            while (j < slice.length && (slice[j] === ' ' || slice[j] === '\t')) j++;
+            const next = slice[j];
+            if (next === ',' || next === '}' || next === ']' || next === ':' || next === '\n' || next === '\r') {
+              inString = false;
+              result += ch;
+            } else {
+              // Unescaped quote — escape it
+              result += '\\"';
+            }
+          } else {
+            result += ch;
+          }
+        }
+      }
+      return JSON.parse(result);
+    } catch { /* fall through */ }
+
+    // 3. Last resort for arrays: extract individual objects that parse cleanly
+    if (isArray) {
+      try {
+        const items = [];
+        let depth = 0, objStart = -1;
+        for (let i = 0; i < slice.length; i++) {
+          if (slice[i] === '{') { if (depth === 0) objStart = i; depth++; }
+          else if (slice[i] === '}') {
+            depth--;
+            if (depth === 0 && objStart !== -1) {
+              try { items.push(JSON.parse(slice.slice(objStart, i + 1))); } catch { /* skip */ }
+              objStart = -1;
+            }
+          }
+        }
+        if (items.length > 0) return items;
+      } catch { /* fall through */ }
     }
+
+    logger.error('OllamaService: JSON parse failed after repair attempts', { raw: raw.substring(0, 200) });
+    return null;
   }
 
   async generateAds({ product, targetAudience, platform, tone, campaignObjective }) {

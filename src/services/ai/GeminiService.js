@@ -33,8 +33,6 @@ class GeminiService {
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { maxOutputTokens: maxTokens, temperature },
-            // Disable thinking tokens for structured JSON output (faster + saves token budget)
-            thinkingConfig: { thinkingBudget: 0 },
           }),
         });
 
@@ -51,7 +49,10 @@ class GeminiService {
         }
 
         const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+        // gemini-2.5-flash may return thinking parts (thought:true) before the output part.
+        // Find the first non-thinking text part, fall back to parts[0] for other models.
+        const parts = data?.candidates?.[0]?.content?.parts ?? [];
+        const text = (parts.find(p => !p.thought) ?? parts[0])?.text ?? null;
         if (text) {
           logger.info(`GeminiService: used ${model}`);
           return text;

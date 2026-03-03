@@ -65,9 +65,12 @@ class HuggingFaceService {
       }
 
       if (res.status === 403) {
-        logger.warn('HuggingFaceService: token lacks Inference Providers permission — regenerate at https://huggingface.co/settings/tokens with "Make calls to Inference Providers" scope');
+        // Token missing "Make calls to Inference Providers" permission.
+        // Fix: go to https://huggingface.co/settings/tokens → create a new token →
+        //      enable "Make calls to Inference Providers" → update HUGGINGFACE_API_KEY in .env
+        logger.warn('HuggingFaceService: token missing "Make calls to Inference Providers" permission. Regenerate token at https://huggingface.co/settings/tokens');
       } else if (res.status === 503) {
-        logger.warn('HuggingFaceService: model loading, skip', { model: this.model });
+        logger.warn('HuggingFaceService: model loading/overloaded, skip', { model: this.model });
       } else {
         const err = await res.text();
         logger.error('HuggingFaceService chat API error', { status: res.status, body: err.substring(0, 200) });
@@ -80,20 +83,67 @@ class HuggingFaceService {
   }
 
   /**
-   * Parse JSON from HuggingFace response, stripping markdown fences.
+   * Parse JSON from HuggingFace response with repair fallback for unescaped quotes.
    */
   parseJSON(raw) {
     if (!raw) return null;
+
+    const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const start = cleaned.search(/[\[{]/);
+    if (start === -1) return null;
+    const isArray = cleaned[start] === '[';
+    const end = isArray ? cleaned.lastIndexOf(']') : cleaned.lastIndexOf('}');
+    if (end === -1 || end < start) return null;
+
+    const slice = cleaned.slice(start, end + 1);
+
+    // 1. Direct parse
+    try { return JSON.parse(slice); } catch { /* fall through */ }
+
+    // 2. Repair unescaped double quotes in string values
     try {
-      const cleaned = raw.replace(/```json\s*|```\s*/g, '').trim();
-      const start   = cleaned.search(/[\[{]/);
-      const end     = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
-      if (start === -1 || end === -1) return null;
-      return JSON.parse(cleaned.slice(start, end + 1));
-    } catch {
-      logger.warn('HuggingFaceService: JSON parse failed', { raw: raw.substring(0, 200) });
-      return null;
+      let result = '', inString = false;
+      for (let i = 0; i < slice.length; i++) {
+        const ch = slice[i];
+        if (!inString) {
+          if (ch === '"') inString = true;
+          result += ch;
+        } else if (ch === '\\') {
+          result += ch + (slice[i + 1] || '');
+          i++;
+        } else if (ch === '"') {
+          let j = i + 1;
+          while (j < slice.length && (slice[j] === ' ' || slice[j] === '\t')) j++;
+          const next = slice[j];
+          if (next === ',' || next === '}' || next === ']' || next === ':' || next === '\n' || next === '\r') {
+            inString = false; result += ch;
+          } else { result += '\\"'; }
+        } else { result += ch; }
+      }
+      return JSON.parse(result);
+    } catch { /* fall through */ }
+
+    // 3. Last resort for arrays
+    if (isArray) {
+      try {
+        const items = [];
+        let depth = 0, objStart = -1;
+        for (let i = 0; i < slice.length; i++) {
+          if (slice[i] === '{') { if (depth === 0) objStart = i; depth++; }
+          else if (slice[i] === '}') {
+            depth--;
+            if (depth === 0 && objStart !== -1) {
+              try { items.push(JSON.parse(slice.slice(objStart, i + 1))); } catch { /* skip */ }
+              objStart = -1;
+            }
+          }
+        }
+        if (items.length > 0) return items;
+      } catch { /* fall through */ }
     }
+
+    logger.warn('HuggingFaceService: JSON parse failed', { raw: raw.substring(0, 200) });
+    return null;
   }
 
   /**
