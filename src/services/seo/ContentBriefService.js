@@ -5,8 +5,9 @@ const prisma   = require('../../config/prisma');
 const logger   = require('../../config/logger');
 const AppError = require('../../common/AppError');
 const config   = require('../../config');
-const gemini   = require('../ai/GeminiService');
-const ollama   = require('../ai/OllamaService');
+const gemini      = require('../ai/GeminiService');
+const ollama      = require('../ai/OllamaService');
+const huggingface = require('../ai/HuggingFaceService');
 
 const TfIdf     = natural.TfIdf;
 const tokenizer = new natural.WordTokenizer();
@@ -50,6 +51,11 @@ class ContentBriefService {
       aiResult = await this._generateWithGemini(teamId, targetKeyword);
     }
 
+    // 4. HuggingFace (free key, Mistral-7B)
+    if (!aiResult && huggingface.isAvailable) {
+      aiResult = await this._generateWithHuggingFace(teamId, targetKeyword);
+    }
+
     if (aiResult) {
       // AI path
       const brief = await prisma.contentBrief.create({
@@ -67,6 +73,29 @@ class ContentBriefService {
 
     // Fallback: deterministic TF-IDF
     return this._generateFallback(teamId, targetKeyword);
+  }
+
+  /**
+   * Generate brief via HuggingFace Inference API (free key, Mistral-7B).
+   */
+  async _generateWithHuggingFace(teamId, targetKeyword) {
+    try {
+      const relatedKeywords = await prisma.keyword.findMany({
+        where:  { teamId },
+        select: { keyword: true },
+        take:   12,
+      });
+      const result = await huggingface.generateContentBrief({
+        keyword:         targetKeyword,
+        relatedKeywords: relatedKeywords.map(k => k.keyword),
+      });
+      if (!result || !result.title || !Array.isArray(result.outline)) return null;
+      if (!SEARCH_INTENTS.includes(result.searchIntent)) result.searchIntent = 'informational';
+      return { ...result, _source: 'huggingface' };
+    } catch (err) {
+      logger.warn('ContentBriefService: HuggingFace generation failed', { err: err.message });
+      return null;
+    }
   }
 
   /**

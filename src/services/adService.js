@@ -3,8 +3,9 @@
 const adRepo = require('../repositories/adRepository');
 const campaignRepo = require('../repositories/campaignRepository');
 const { AppError } = require('../middleware/errorHandler');
-const gemini = require('./ai/GeminiService');
-const ollama = require('./ai/OllamaService');
+const gemini      = require('./ai/GeminiService');
+const ollama      = require('./ai/OllamaService');
+const huggingface = require('./ai/HuggingFaceService');
 
 async function getAdsByCampaign(campaignId, teamId) {
   // Verify campaign belongs to team
@@ -75,6 +76,12 @@ async function generateAdWithAI(campaignId, brief, teamId) {
   // 2. Try Gemini (free key)
   if (gemini.isAvailable) {
     const result = toVariations(await gemini.generateAds(adParams), 'gemini');
+    if (result) return result;
+  }
+
+  // 3. Try HuggingFace (free key, Mistral-7B)
+  if (huggingface.isAvailable) {
+    const result = toVariations(await huggingface.generateAds(adParams), 'huggingface');
     if (result) return result;
   }
 

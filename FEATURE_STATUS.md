@@ -86,19 +86,25 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 | List / Create / Edit ads | 🟢 LIVE | Real DB |
 | **AI Ad Generation** | 🔵 FREE_KEY | Priority chain: Ollama (local) → Gemini (free) → OpenAI → fallback mock |
 
-**Setup to activate real AI:**
+**Setup to activate real AI (pick any — all free):**
 ```bash
-# Option A — Ollama (completely free, runs locally)
+# Option A — Ollama (local, unlimited, best quality)
 # Install: https://ollama.com/download
-ollama pull llama3.2    # or mistral, gemma2
-# Set in .env:
+ollama serve && ollama pull llama3.2
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
 
-# Option B — Gemini (free: 15 req/min, 1M tokens/day)
+# Option B — HuggingFace (free key, Mistral-7B hosted)
+# Get free token (no CC): https://huggingface.co/settings/tokens
+HUGGINGFACE_API_KEY=hf_xxxxxxxxxx
+HUGGINGFACE_MODEL=mistralai/Mistral-7B-Instruct-v0.3
+
+# Option C — Gemini (free: 15 req/min, 1M tokens/day)
 # Get key: https://aistudio.google.com/apikey
 GEMINI_API_KEY=your_key_here
 ```
+
+**AI priority chain:** Ollama → Gemini → HuggingFace → OpenAI → template fallback
 
 **Test:**
 ```bash
