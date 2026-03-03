@@ -20,7 +20,10 @@ class HuggingFaceService {
   constructor() {
     this.apiKey  = process.env.HUGGINGFACE_API_KEY || null;
     this.model   = process.env.HUGGINGFACE_MODEL   || 'mistralai/Mistral-7B-Instruct-v0.3';
-    this.baseUrl = 'https://api-inference.huggingface.co/models';
+    // New router endpoint (replaces deprecated api-inference.huggingface.co)
+    this.baseUrl     = 'https://router.huggingface.co/hf-inference/models';
+    // OpenAI-compatible endpoint for chat models
+    this.chatBaseUrl = 'https://router.huggingface.co/v1';
   }
 
   get isAvailable() {
@@ -28,7 +31,9 @@ class HuggingFaceService {
   }
 
   /**
-   * Call HuggingFace Inference API.
+   * Call HuggingFace Inference API via OpenAI-compatible chat completions endpoint.
+   * Requires token with "Make calls to Inference Providers" permission.
+   * Falls back to legacy text-generation format if chat fails.
    * Returns the generated text string or null.
    */
   async generate(prompt, opts = {}) {
@@ -36,44 +41,42 @@ class HuggingFaceService {
 
     const { maxTokens = 1024, temperature = 0.7 } = opts;
 
+    // Primary: OpenAI-compatible chat completions (router.huggingface.co/v1)
     try {
-      const res = await fetch(`${this.baseUrl}/${this.model}`, {
+      const res = await fetch(`${this.chatBaseUrl}/chat/completions`, {
         method:  'POST',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type':  'application/json',
         },
         body: JSON.stringify({
-          inputs: prompt,
-          parameters: {
-            max_new_tokens:  maxTokens,
-            temperature,
-            return_full_text: false,
-            do_sample:       true,
-          },
+          model:       this.model,
+          messages:    [{ role: 'user', content: prompt }],
+          max_tokens:  maxTokens,
+          temperature,
         }),
         signal: AbortSignal.timeout(30000),
       });
 
-      if (!res.ok) {
-        const err = await res.text();
-        // Model loading (503) — transient, not an error
-        if (res.status === 503) {
-          logger.warn('HuggingFaceService: model loading, skip', { model: this.model });
-        } else {
-          logger.error('HuggingFaceService API error', { status: res.status, body: err.substring(0, 200) });
-        }
-        return null;
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.choices?.[0]?.message?.content?.trim();
+        if (text) return text;
       }
 
-      const data = await res.json();
-      // HF returns array: [{ generated_text: "..." }]
-      const text = Array.isArray(data) ? data[0]?.generated_text : data?.generated_text;
-      return text?.trim() ?? null;
+      if (res.status === 403) {
+        logger.warn('HuggingFaceService: token lacks Inference Providers permission — regenerate at https://huggingface.co/settings/tokens with "Make calls to Inference Providers" scope');
+      } else if (res.status === 503) {
+        logger.warn('HuggingFaceService: model loading, skip', { model: this.model });
+      } else {
+        const err = await res.text();
+        logger.error('HuggingFaceService chat API error', { status: res.status, body: err.substring(0, 200) });
+      }
     } catch (err) {
       logger.error('HuggingFaceService.generate failed', { message: err.message });
-      return null;
     }
+
+    return null;
   }
 
   /**

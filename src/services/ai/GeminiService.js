@@ -3,7 +3,8 @@
 const logger = require('../../config/logger');
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const MODEL = 'gemini-2.0-flash';
+// Model fallback chain — each has its own free-tier quota bucket
+const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
 
 class GeminiService {
   constructor() {
@@ -20,41 +21,66 @@ class GeminiService {
       return null;
     }
 
-    const { maxTokens = 2048, temperature = 0.8 } = opts;
+    const { maxTokens = 4096, temperature = 0.8 } = opts;
 
-    try {
-      const url = `${GEMINI_BASE}/${MODEL}:generateContent?key=${this.apiKey}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: maxTokens, temperature },
-        }),
-      });
+    // Try each model in order — each has its own free quota bucket
+    for (const model of MODELS) {
+      try {
+        const url = `${GEMINI_BASE}/${model}:generateContent?key=${this.apiKey}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: maxTokens, temperature },
+            // Disable thinking tokens for structured JSON output (faster + saves token budget)
+            thinkingConfig: { thinkingBudget: 0 },
+          }),
+        });
 
-      if (!res.ok) {
-        const errBody = await res.text();
-        logger.error('Gemini API error', { status: res.status, body: errBody.substring(0, 300) });
-        return null;
+        if (res.status === 429 || res.status === 503) {
+          const errBody = await res.text();
+          logger.warn(`GeminiService: ${model} quota/overload (${res.status}), trying next model`);
+          continue; // try next model
+        }
+
+        if (!res.ok) {
+          const errBody = await res.text();
+          logger.error('Gemini API error', { model, status: res.status, body: errBody.substring(0, 300) });
+          return null;
+        }
+
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+        if (text) {
+          logger.info(`GeminiService: used ${model}`);
+          return text;
+        }
+      } catch (err) {
+        logger.error('GeminiService.generate failed', { model, message: err.message });
       }
-
-      const data = await res.json();
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-    } catch (err) {
-      logger.error('GeminiService.generate failed', { message: err.message });
-      return null;
     }
+
+    logger.error('GeminiService: all models exhausted');
+    return null;
   }
 
   /**
-   * Parse JSON from Gemini response, stripping markdown fences.
+   * Parse JSON from Gemini response.
+   * Strips markdown fences then extracts the first complete JSON object or array.
    */
   parseJSON(raw) {
     if (!raw) return null;
     try {
-      const cleaned = raw.replace(/```json\s*|```\s*/g, '').trim();
-      return JSON.parse(cleaned);
+      // Strip markdown code fences
+      const stripped = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      // Find the outermost JSON structure
+      const start = stripped.search(/[\[{]/);
+      if (start === -1) return null;
+      const isArray = stripped[start] === '[';
+      const end = isArray ? stripped.lastIndexOf(']') : stripped.lastIndexOf('}');
+      if (end === -1) return null;
+      return JSON.parse(stripped.slice(start, end + 1));
     } catch {
       logger.error('GeminiService: JSON parse failed', { raw: raw.substring(0, 200) });
       return null;
