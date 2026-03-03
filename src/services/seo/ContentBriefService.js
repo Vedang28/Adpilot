@@ -6,6 +6,7 @@ const logger   = require('../../config/logger');
 const AppError = require('../../common/AppError');
 const config   = require('../../config');
 const gemini   = require('../ai/GeminiService');
+const ollama   = require('../ai/OllamaService');
 
 const TfIdf     = natural.TfIdf;
 const tokenizer = new natural.WordTokenizer();
@@ -33,11 +34,18 @@ class ContentBriefService {
     if (!targetKeyword?.trim()) throw AppError.badRequest('targetKeyword is required');
 
     let aiResult = null;
-    if (config.openaiApiKey) {
+
+    // 1. Ollama (local, free, no API key)
+    if (!aiResult && await ollama.isAvailable()) {
+      aiResult = await this._generateWithOllama(teamId, targetKeyword);
+    }
+
+    // 2. OpenAI (paid)
+    if (!aiResult && config.openaiApiKey) {
       aiResult = await this._generateWithAI(targetKeyword);
     }
 
-    // Gemini fallback when OpenAI is not configured
+    // 3. Gemini (free key)
     if (!aiResult && gemini.isAvailable) {
       aiResult = await this._generateWithGemini(teamId, targetKeyword);
     }
@@ -104,6 +112,29 @@ Return ONLY the JSON object, no markdown, no extra text.`;
       return parsed;
     } catch (err) {
       logger.warn('ContentBriefService: OpenAI generation failed — using fallback', { err: err.message });
+      return null;
+    }
+  }
+
+  /**
+   * Generate brief via Ollama (local, free, highest priority).
+   */
+  async _generateWithOllama(teamId, targetKeyword) {
+    try {
+      const relatedKeywords = await prisma.keyword.findMany({
+        where:  { teamId },
+        select: { keyword: true },
+        take:   15,
+      });
+      const result = await ollama.generateContentBrief({
+        keyword:         targetKeyword,
+        relatedKeywords: relatedKeywords.map(k => k.keyword),
+      });
+      if (!result || !result.title || !Array.isArray(result.outline)) return null;
+      if (!SEARCH_INTENTS.includes(result.searchIntent)) result.searchIntent = 'informational';
+      return { ...result, _source: 'ollama' };
+    } catch (err) {
+      logger.warn('ContentBriefService: Ollama generation failed', { err: err.message });
       return null;
     }
   }

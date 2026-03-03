@@ -1,8 +1,9 @@
 'use strict';
 
-const logger           = require('../../config/logger');
+const logger             = require('../../config/logger');
 const CompetitorAnalyzer = require('./CompetitorAnalyzer');
-const gemini           = require('./GeminiService');
+const gemini             = require('./GeminiService');
+const ollama             = require('./OllamaService');
 
 class CompetitorHijackService {
   /**
@@ -30,19 +31,26 @@ class CompetitorHijackService {
       });
     }
 
-    // If crawl succeeded, optionally enrich with Gemini AI insights
+    // If crawl succeeded, optionally enrich with AI insights (Ollama → Gemini)
     if (crawlData) {
       let aiInsights = null;
-      if (gemini.isAvailable) {
-        aiInsights = await gemini.analyzeCompetitor({
-          domain:      crawlData.domain,
-          title:       crawlData.title,
-          description: crawlData.description,
-          ctas:        crawlData.ctas,
-          topKeywords: crawlData.topKeywords,
-          techStack:   crawlData.techStack,
-          headings:    crawlData.headings,
-        });
+      const aiParams = {
+        domain:      crawlData.domain,
+        title:       crawlData.title,
+        description: crawlData.description,
+        ctas:        crawlData.ctas,
+        topKeywords: crawlData.topKeywords,
+        techStack:   crawlData.techStack,
+        headings:    crawlData.headings,
+      };
+
+      // 1. Try Ollama (local, free)
+      if (await ollama.isAvailable()) {
+        aiInsights = await ollama.analyzeCompetitor(aiParams);
+      }
+      // 2. Try Gemini (free key)
+      if (!aiInsights && gemini.isAvailable) {
+        aiInsights = await gemini.analyzeCompetitor(aiParams);
       }
 
       // Build keyword gaps from crawl data (real keywords found on their site)

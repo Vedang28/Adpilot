@@ -85,26 +85,27 @@ class KeywordTrackingService {
     const updates  = [];
     const now      = new Date();
 
-    // Get team's domain from any tracked competitor or use a generic placeholder
+    // Team's website domain — set TEAM_DOMAIN in .env for real rank tracking
     const teamDomain = process.env.TEAM_DOMAIN || 'adpilot.io';
 
     for (const kw of keywords) {
-      let newRank = null;
-      let isReal  = false;
+      let newRank  = null;
+      let isReal   = false;
+      let rankSource = 'mock';
 
-      // Try real SERP lookup first
-      if (serpService.isAvailable) {
-        const serpResult = await serpService.getRank(kw.keyword, teamDomain);
-        if (serpResult.isReal) {
-          newRank = serpResult.position; // null = not in top 50
-          isReal  = true;
-        }
+      // Try real SERP lookup (ValueSERP → DuckDuckGo → false)
+      const serpResult = await serpService.getRank(kw.keyword, teamDomain);
+      if (serpResult.isReal) {
+        newRank    = serpResult.position; // null = not in top 50
+        isReal     = true;
+        rankSource = serpResult.source || 'serp';
       }
 
-      // Fall back to ±3 rank drift simulation if SERP unavailable
+      // Last resort: ±3 rank drift simulation
       if (!isReal) {
         const drift = Math.round((Math.random() - 0.5) * 6);
-        newRank = kw.currentRank ? Math.max(1, kw.currentRank + drift) : null;
+        newRank     = kw.currentRank ? Math.max(1, kw.currentRank + drift) : null;
+        rankSource  = 'mock';
       }
 
       // Atomically update keyword + append rank history snapshot
@@ -118,7 +119,7 @@ class KeywordTrackingService {
           : []),
       ]);
 
-      updates.push({ id: kw.id, keyword: kw.keyword, newRank, drift });
+      updates.push({ id: kw.id, keyword: kw.keyword, newRank, isReal, source: rankSource });
     }
 
     logger.info('Keyword ranks synced', { teamId, count: updates.length });

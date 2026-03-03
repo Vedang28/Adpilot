@@ -4,6 +4,7 @@ const adRepo = require('../repositories/adRepository');
 const campaignRepo = require('../repositories/campaignRepository');
 const { AppError } = require('../middleware/errorHandler');
 const gemini = require('./ai/GeminiService');
+const ollama = require('./ai/OllamaService');
 
 async function getAdsByCampaign(campaignId, teamId) {
   // Verify campaign belongs to team
@@ -41,29 +42,40 @@ async function generateAdWithAI(campaignId, brief, teamId) {
     throw new AppError('Campaign not found', 404);
   }
 
-  // Try Gemini first
-  if (gemini.isAvailable) {
-    const aiVariations = await gemini.generateAds({
-      product:           brief.productName || campaign.name,
-      targetAudience:    brief.targetAudience || 'general audience',
-      platform:          brief.platform || campaign.platform,
-      tone:              brief.tone,
-      campaignObjective: brief.objective || campaign.objective,
-    });
+  const adParams = {
+    product:           brief.productName || campaign.name,
+    targetAudience:    brief.targetAudience || 'general audience',
+    platform:          brief.platform || campaign.platform,
+    tone:              brief.tone,
+    campaignObjective: brief.objective || campaign.objective,
+  };
 
-    if (aiVariations && Array.isArray(aiVariations)) {
-      return aiVariations.map(v => ({
-        headline:    v.headline,
-        primaryText: v.primaryText,
-        description: v.description,
-        ctaType:     v.callToAction?.toUpperCase().replace(/\s+/g, '_') || 'LEARN_MORE',
-        platform:    campaign.platform,
-        status:      'draft',
-        qualityScore: v.qualityScore,
-        reasoning:   v.reasoning,
-        isAiGenerated: true,
-      }));
-    }
+  const toVariations = (aiResult, source) =>
+    Array.isArray(aiResult)
+      ? aiResult.map(v => ({
+          headline:      v.headline,
+          primaryText:   v.primaryText,
+          description:   v.description,
+          ctaType:       v.callToAction?.toUpperCase().replace(/\s+/g, '_') || 'LEARN_MORE',
+          platform:      campaign.platform,
+          status:        'draft',
+          qualityScore:  v.qualityScore,
+          reasoning:     v.reasoning,
+          isAiGenerated: true,
+          aiSource:      source,
+        }))
+      : null;
+
+  // 1. Try Ollama (local, free, no API key)
+  if (await ollama.isAvailable()) {
+    const result = toVariations(await ollama.generateAds(adParams), 'ollama');
+    if (result) return result;
+  }
+
+  // 2. Try Gemini (free key)
+  if (gemini.isAvailable) {
+    const result = toVariations(await gemini.generateAds(adParams), 'gemini');
+    if (result) return result;
   }
 
   // Fallback: mock variations (labelled as mock)

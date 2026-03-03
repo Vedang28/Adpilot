@@ -1,15 +1,16 @@
 'use strict';
 
-const logger = require('../../config/logger');
+const logger        = require('../../config/logger');
+const googleScraper = require('./GoogleScraper');
 
 /**
- * SerpService — Google rank tracking via ValueSERP API.
+ * SerpService — Keyword rank tracking with 3-tier fallback.
  *
- * Free tier: 50 searches/month (no credit card required).
- * Get key: https://www.valueserp.com/
- *
- * When VALUESERP_API_KEY is not set, all methods return { isReal: false }
- * so callers can fall back to the existing mock rank drift.
+ * Priority:
+ *   1. ValueSERP API     — most accurate (Google), free 50/month
+ *      Get key: https://www.valueserp.com/
+ *   2. DuckDuckGo HTML   — free, no key, no limit (built-in fallback)
+ *   3. Mock drift        — ±3 from seeded starting position (last resort)
  */
 class SerpService {
   constructor() {
@@ -17,21 +18,50 @@ class SerpService {
     this.baseUrl = 'https://api.valueserp.com/search';
   }
 
-  get isAvailable() {
+  get hasValueSerp() {
     return !!this.apiKey;
   }
 
   /**
-   * Get real Google rank for a keyword + domain.
-   * Returns: { position, url, title, isReal }
+   * Get rank for a keyword + domain.
+   * Tries ValueSERP → DuckDuckGo scraper → returns { isReal: false } as last resort.
    *
-   * position is null if domain not found in top 50 results.
+   * Returns: { position: number|null, url, title, isReal, source }
    */
   async getRank(keyword, targetDomain) {
-    if (!this.apiKey) {
-      return { position: null, url: null, title: null, isReal: false };
+    // 1. ValueSERP (accurate Google results)
+    if (this.apiKey) {
+      const result = await this._valueSerp(keyword, targetDomain);
+      if (result.isReal !== false) return result;
     }
 
+    // 2. DuckDuckGo HTML scraper (free, no key)
+    const ddgResult = await googleScraper.getRank(keyword, targetDomain);
+    if (ddgResult.isReal) return ddgResult;
+
+    // 3. No real data available
+    return { position: null, url: null, title: null, isReal: false, source: 'none' };
+  }
+
+  /**
+   * Bulk rank check.
+   * Adds delay between requests to be polite to free services.
+   */
+  async getRanks(keywords, targetDomain) {
+    const results = [];
+    for (const kw of keywords) {
+      const rank = await this.getRank(kw, targetDomain);
+      results.push({ keyword: kw, ...rank });
+      // 1.1s between requests — safe for ValueSERP free tier and DDG
+      await new Promise(r => setTimeout(r, 1100));
+    }
+    return results;
+  }
+
+  /**
+   * ValueSERP API call (Google results, most accurate).
+   */
+  async _valueSerp(keyword, targetDomain) {
     try {
       const params = new URLSearchParams({
         api_key:       this.apiKey,
@@ -47,13 +77,12 @@ class SerpService {
       const res = await fetch(`${this.baseUrl}?${params}`);
       if (!res.ok) {
         logger.error('ValueSERP API error', { status: res.status, keyword });
-        return { position: null, url: null, title: null, isReal: false };
+        return { position: null, url: null, title: null, isReal: false, source: 'valueserp' };
       }
 
       const data    = await res.json();
       const results = data?.organic_results ?? [];
 
-      // Normalize domain for matching
       const cleanTarget = targetDomain
         .replace(/^(https?:\/\/)?(www\.)?/, '')
         .replace(/\/$/, '');
@@ -66,27 +95,12 @@ class SerpService {
       });
 
       return match
-        ? { position: match.position, url: match.link, title: match.title, isReal: true }
-        : { position: null, url: null, title: null, isReal: true }; // not in top 50
+        ? { position: match.position, url: match.link, title: match.title, isReal: true, source: 'valueserp' }
+        : { position: null, url: null, title: null, isReal: true, source: 'valueserp' };
     } catch (err) {
-      logger.error('SerpService.getRank failed', { keyword, error: err.message });
-      return { position: null, url: null, title: null, isReal: false };
+      logger.error('SerpService._valueSerp failed', { keyword, error: err.message });
+      return { position: null, url: null, title: null, isReal: false, source: 'valueserp' };
     }
-  }
-
-  /**
-   * Bulk rank check with 1.1s delay between requests to respect rate limits.
-   * Returns array of { keyword, position, url, title, isReal }
-   */
-  async getRanks(keywords, targetDomain) {
-    const results = [];
-    for (const kw of keywords) {
-      const rank = await this.getRank(kw, targetDomain);
-      results.push({ keyword: kw, ...rank });
-      // Rate limit: ~50 req/min max on free tier
-      await new Promise(r => setTimeout(r, 1100));
-    }
-    return results;
   }
 }
 
