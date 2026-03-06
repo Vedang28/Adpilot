@@ -1,11 +1,33 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# AdPilot Backend — Production Dockerfile
-# Uses node:20-slim + Chrome system deps for Puppeteer / Lighthouse
+# AdPilot — Full-stack Dockerfile (backend API + React frontend)
+#
+# Stage 1: Build the React frontend
+# Stage 2: Run Express server which serves both API and static React build
+#
+# In production (NODE_ENV=production):
+#   - Express serves client/dist as static files
+#   - All /api/* routes hit the backend
+#   - Everything runs on a single port (Railway injects PORT)
 # ─────────────────────────────────────────────────────────────────────────────
 
-FROM node:20-slim AS base
+# ── Stage 1: Build frontend ───────────────────────────────────────────────────
+FROM node:20-slim AS frontend-builder
 
-# Install Chrome OS-level dependencies required by Puppeteer's bundled browser
+WORKDIR /app/client
+
+COPY client/package*.json ./
+RUN npm ci
+
+COPY client/ ./
+
+# VITE_API_URL must be empty in production — Express serves /api from same origin
+# so the frontend uses relative /api/v1 paths (no CORS, no separate domain needed)
+RUN npm run build
+
+# ── Stage 2: Production backend ───────────────────────────────────────────────
+FROM node:20-slim AS production
+
+# Chrome OS-level dependencies required by Puppeteer / Lighthouse
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     fonts-liberation \
@@ -47,22 +69,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy manifests first to leverage Docker layer cache
+# Copy backend manifests + prisma first (layer cache)
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install all deps (including devDeps — we need prisma CLI for migrations)
-RUN npm ci
+# Install backend deps (no devDeps in production)
+RUN npm ci --omit=dev
 
 # Generate Prisma client
 RUN npx prisma generate
 
-# Copy application source
+# Copy backend source
 COPY src ./src/
 
-# Railway injects PORT at runtime. Default to 3000 for local docker runs.
+# Copy the built React app from stage 1
+COPY --from=frontend-builder /app/client/dist ./client/dist
+
+# Railway injects PORT at runtime
 ENV PORT=3000
+ENV NODE_ENV=production
 EXPOSE ${PORT}
 
-# Use db push to always sync schema on deploy (no migration files required).
+# Sync schema + start server
 CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node src/server.js"]

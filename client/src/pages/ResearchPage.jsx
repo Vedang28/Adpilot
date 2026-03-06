@@ -181,13 +181,6 @@ function CompetitorSection() {
 }
 
 // ─── Market Research section ──────────────────────────────────────────────────
-const MOCK_RESEARCH = {
-  traffic: '42,000–68,000 / mo',
-  topKeywords: ['seo audit tool', 'website seo checker', 'free seo analysis', 'technical seo tool', 'on-page seo'],
-  competitors: ['semrush.com', 'ahrefs.com', 'moz.com', 'sitechecker.pro'],
-  opportunities: ['Long-tail informational content', 'Comparison pages vs competitors', 'Video tutorials / how-to guides'],
-};
-
 function MarketResearchSection() {
   const toast = useToast();
   const [url, setUrl] = useState('');
@@ -197,11 +190,31 @@ function MarketResearchSection() {
   const analyze = async () => {
     if (!url.trim()) return;
     setLoading(true);
-    // Simulate API call with mock data
-    await new Promise((r) => setTimeout(r, 1500));
-    setResult(MOCK_RESEARCH);
-    setLoading(false);
-    toast.success('Market analysis complete');
+    try {
+      const res = await api.post('/competitors/analyze', { url: url.trim() });
+      const data = res.data.data;
+      // Normalize the real API response into display shape
+      const lp = data.landingPageData || {};
+      setResult({
+        domain:        data.domain,
+        crawlFailed:   data.crawlFailed,
+        title:         lp.title || data.domain,
+        description:   lp.description || '',
+        topKeywords:   (lp.topKeywords || []).slice(0, 8).map(k => (typeof k === 'string' ? k : k.word || k.keyword || '')).filter(Boolean),
+        headlines:     (lp.headings || []).slice(0, 4).map(h => h.text || h).filter(Boolean),
+        techStack:     lp.techStack || [],
+        ctas:          (lp.ctas || []).slice(0, 4),
+        aiInsights:    data.aiInsights || null,
+        messagingAngles: data.aiInsights?.messagingAngles || [],
+        weaknesses:    data.aiInsights?.weaknesses || [],
+        keywordGaps:   (data.keywordGaps || data.aiInsights?.keywordGaps || []).slice(0, 5),
+      });
+      toast.success(data.crawlFailed ? 'Analysis complete (demo data — site blocked crawl)' : 'Market analysis complete');
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Analysis failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -230,38 +243,83 @@ function MarketResearchSection() {
       </div>
 
       {result && (
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div className="card">
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Est. Monthly Traffic</p>
-            <p className="text-2xl font-bold text-text-primary">{result.traffic}</p>
-          </div>
-          <div className="card">
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Top Competitors</p>
-            <div className="space-y-1.5">
-              {result.competitors.map((c) => (
-                <div key={c} className="flex items-center gap-2 text-sm text-text-secondary">
-                  <ChevronRight className="w-3 h-3 text-accent-blue" />{c}
+        <div className="space-y-4">
+          {result.crawlFailed && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              Demo data shown — site blocked automated crawl. Add as competitor for ongoing tracking.
+            </div>
+          )}
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Site overview */}
+            <div className="card sm:col-span-2">
+              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">{result.domain}</p>
+              <p className="text-sm text-text-primary font-medium">{result.title}</p>
+              {result.description && <p className="text-xs text-text-secondary mt-1 line-clamp-2">{result.description}</p>}
+              {result.techStack.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {result.techStack.slice(0,6).map(t => (
+                    <span key={t} className="text-xs px-2 py-0.5 rounded bg-bg-surface border border-border text-text-secondary">{t}</span>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-          <div className="card">
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Top Keywords</p>
-            <div className="flex flex-wrap gap-1.5">
-              {result.topKeywords.map((kw) => (
-                <span key={kw} className="text-xs px-2.5 py-1 rounded-full border border-border text-text-secondary">{kw}</span>
-              ))}
-            </div>
-          </div>
-          <div className="card">
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Opportunities</p>
-            <div className="space-y-1.5">
-              {result.opportunities.map((o) => (
-                <div key={o} className="flex items-start gap-2 text-sm text-text-secondary">
-                  <Target className="w-3.5 h-3.5 text-accent-green mt-0.5 shrink-0" />{o}
+
+            {/* Top keywords */}
+            {result.topKeywords.length > 0 && (
+              <div className="card">
+                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Top Keywords</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {result.topKeywords.map((kw) => (
+                    <span key={kw} className="text-xs px-2.5 py-1 rounded-full border border-border text-text-secondary">{kw}</span>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/* CTAs */}
+            {result.ctas.length > 0 && (
+              <div className="card">
+                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Their CTAs</p>
+                <div className="space-y-1.5">
+                  {result.ctas.map((c, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm text-text-secondary">
+                      <ChevronRight className="w-3 h-3 text-accent-blue shrink-0" />{c}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* AI insights */}
+            {result.aiInsights && (
+              <>
+                {result.messagingAngles.length > 0 && (
+                  <div className="card">
+                    <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Messaging Angles</p>
+                    <div className="space-y-1.5">
+                      {result.messagingAngles.map((a, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm text-text-secondary">
+                          <Sparkles className="w-3.5 h-3.5 text-purple-400 mt-0.5 shrink-0" />{a}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {result.weaknesses.length > 0 && (
+                  <div className="card">
+                    <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Weaknesses to Exploit</p>
+                    <div className="space-y-1.5">
+                      {result.weaknesses.map((w, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm text-text-secondary">
+                          <Target className="w-3.5 h-3.5 text-accent-green mt-0.5 shrink-0" />{w}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
