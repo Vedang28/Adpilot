@@ -8,14 +8,14 @@ const AGENTS = [
     id: 'input', labelLines: ['AD', 'INPUT'],
     accent: '#3b82f6', accentRgb: '59,130,246',
     title: 'Ad Input', stat: 'Every 15 minutes',
-    desc: 'Live campaign data streams in every 15 minutes from Meta and Google. Spend, impressions, ROAS, CPA — ingested and normalized automatically.',
+    desc: 'Live campaign data streams in every 15 minutes from Meta and Google. Spend, impressions, ROAS, CPA. All ingested and normalized automatically.',
     icon: (c) => <svg viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>,
   },
   {
     id: 'analysis', labelLines: ['AI', 'ANALYSIS'],
     accent: '#8b5cf6', accentRgb: '139,92,246',
     title: 'AI Analysis', stat: 'Z-score anomaly detection',
-    desc: 'Six specialized models detect anomalies, identify underperformers, and surface growth windows — comparing against historical baselines and competitor benchmarks.',
+    desc: 'Six specialized models detect anomalies, identify underperformers, and surface growth windows, comparing against historical baselines and competitor benchmarks.',
     icon: (c) => <svg viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>,
   },
   {
@@ -58,13 +58,17 @@ export default function LandingPage() {
   const plFillRef     = useRef(null);
   const nodeRefs      = useRef([]);
 
-  const [navOpen,     setNavOpen]     = useState(false);
-  const [liveVisible, setLiveVisible] = useState(true);
-  const [activeNode,  setActiveNode]  = useState(0);
-  const [calMonth,    setCalMonth]    = useState(2);   // March
-  const [calYear,     setCalYear]     = useState(2026);
-  const [calDate,     setCalDate]     = useState(null);
-  const [calTime,     setCalTime]     = useState(null);
+  const [navOpen,       setNavOpen]       = useState(false);
+  const [liveVisible,   setLiveVisible]   = useState(true);
+  const [activeNode,    setActiveNode]    = useState(0);
+  const [calMonth,      setCalMonth]      = useState(2);
+  const [calYear,       setCalYear]       = useState(2026);
+  const [calDate,       setCalDate]       = useState(null);
+  const [calTime,       setCalTime]       = useState(null);
+  const [cycleIdx,      setCycleIdx]      = useState(0);
+  const [kwVisible,     setKwVisible]     = useState(true);
+
+  const KEYWORDS = ['ROAS drops', 'CTR collapses', 'spend spikes', 'budgets bleed'];
 
   /* ── scroll progress bar ── */
   useEffect(() => {
@@ -167,47 +171,118 @@ export default function LandingPage() {
     });
   }, []);
 
-  /* ── STATIC DIAGONAL STREAK CANVAS ── */
+  /* ── cycling keyword ── */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setKwVisible(false);
+      setTimeout(() => { setCycleIdx(i => (i + 1) % KEYWORDS.length); setKwVisible(true); }, 300);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, []);
+
+  /* ── SHOOTING STARS + STATIC SLASHES CANVAS ── */
   useEffect(() => {
     const canvas = streakRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const draw = () => {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      const count = 20;
-      for (let i = 0; i < count; i++) {
-        // Pseudo-random but deterministic (seeded by index)
-        const r1 = (Math.sin(i * 137.508) * 0.5 + 0.5);
-        const r2 = (Math.sin(i * 251.717 + 99) * 0.5 + 0.5);
-        const r3 = (Math.sin(i * 73.11 + 33) * 0.5 + 0.5);
-        const r4 = (Math.sin(i * 41.77 + 17) * 0.5 + 0.5);
-
-        // Bias toward edges
-        const x = r1 < 0.5 ? r1 * 0.35 * canvas.width : (0.65 + (r1 - 0.5) * 0.7) * canvas.width;
-        const y = r2 * canvas.height;
+    // Draw static slash lines to an offscreen canvas (cached, redrawn on resize)
+    let slashCache = null;
+    const buildSlashCache = (w, h) => {
+      const off = document.createElement('canvas');
+      off.width = w; off.height = h;
+      const oc = off.getContext('2d');
+      for (let i = 0; i < 20; i++) {
+        const r1 = Math.sin(i * 137.508) * 0.5 + 0.5;
+        const r2 = Math.sin(i * 251.717 + 99) * 0.5 + 0.5;
+        const r3 = Math.sin(i * 73.11 + 33) * 0.5 + 0.5;
+        const r4 = Math.sin(i * 41.77 + 17) * 0.5 + 0.5;
+        const x = r1 < 0.5 ? r1 * 0.35 * w : (0.65 + (r1 - 0.5) * 0.7) * w;
+        const y = r2 * h;
         const length = 80 + r3 * 100;
         const angle  = (30 + r4 * 15) * Math.PI / 180;
-
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle);
-        ctx.strokeStyle = 'rgba(255,255,255,0.035)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(length, 0);
-        ctx.stroke();
-        ctx.restore();
+        oc.save();
+        oc.translate(x, y);
+        oc.rotate(angle);
+        oc.strokeStyle = 'rgba(255,255,255,0.032)';
+        oc.lineWidth = 1;
+        oc.beginPath();
+        oc.moveTo(0, 0);
+        oc.lineTo(length, 0);
+        oc.stroke();
+        oc.restore();
       }
+      return off;
     };
 
-    draw();
-    window.addEventListener('resize', draw);
-    return () => window.removeEventListener('resize', draw);
+    // Shooting star pool
+    const POOL = 16;
+    const stars = [];
+
+    const makestar = () => ({
+      x: Math.random() * canvas.width * 1.4 - canvas.width * 0.2,
+      y: -20,
+      length:  80 + Math.random() * 120,
+      speed:   2.5 + Math.random() * 3,
+      opacity: 0.5 + Math.random() * 0.4,
+      width:   1 + Math.random() * 1.5,
+      angle:   35 + Math.random() * 15,
+      delay:   Math.random() * 8000,
+      born:    Date.now(),
+      active:  false,
+    });
+
+    const resize = () => {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+      slashCache = buildSlashCache(canvas.width, canvas.height);
+      stars.length = 0;
+      for (let i = 0; i < POOL; i++) stars.push(makestar());
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    let raf;
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (slashCache) ctx.drawImage(slashCache, 0, 0);
+
+      stars.forEach((s, idx) => {
+        if (!s.active) {
+          if (Date.now() - s.born >= s.delay) s.active = true;
+          else return;
+        }
+        const rad = s.angle * Math.PI / 180;
+        s.x += Math.cos(rad) * s.speed;
+        s.y += Math.sin(rad) * s.speed;
+
+        if (s.x > canvas.width + 200 || s.y > canvas.height + 200) {
+          stars[idx] = makestar();
+          return;
+        }
+        const tx = s.x - Math.cos(rad) * s.length;
+        const ty = s.y - Math.sin(rad) * s.length;
+        const grad = ctx.createLinearGradient(tx, ty, s.x, s.y);
+        grad.addColorStop(0, 'rgba(255,255,255,0)');
+        grad.addColorStop(0.6, `rgba(200,210,255,${s.opacity * 0.4})`);
+        grad.addColorStop(1, `rgba(255,255,255,${s.opacity})`);
+        ctx.beginPath();
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = s.width;
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(s.x, s.y);
+        ctx.stroke();
+        // bright tip
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.width * 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${s.opacity * 0.8})`;
+        ctx.fill();
+      });
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
   }, []);
 
   /* ── MOUSE GLOW + CURSOR ── */
@@ -394,7 +469,16 @@ export default function LandingPage() {
         <div className="container" style={{ position: 'relative', zIndex: 3 }}>
           <div className="hero-badge"><span className="hero-badge-dot" />🔴 Live — Monitoring $2.4M in ad spend globally</div>
           <h1>Your Ads Are Bleeding<br /><span className="gradient-text">Money Right Now.</span></h1>
-          <p className="hero-sub">AdPilot watches every campaign 24/7. The moment ROAS drops, CTR collapses, or spend spikes — we pause it automatically before you lose another rupee.</p>
+          <p className="hero-sub">
+            AdPilot watches every campaign 24/7. The moment{' '}
+            <span
+              className="cycling-keyword"
+              style={{ opacity: kwVisible ? 1 : 0, transform: kwVisible ? 'translateY(0)' : 'translateY(-8px)' }}
+            >
+              {KEYWORDS[cycleIdx]}
+            </span>
+            , we pause it automatically before you lose another rupee.
+          </p>
           <div className="hero-ctas">
             <Link to="/register" className="btn-primary">Stop The Bleed — Free Trial</Link>
             <a href="#features" className="btn-ghost">See a live demo →</a>
@@ -407,7 +491,7 @@ export default function LandingPage() {
             <div className="preview-window">
               <div className="preview-topbar">
                 <div className="dot dot-r" /><div className="dot dot-y" /><div className="dot dot-g" />
-                <span className="preview-url">adpilot.app — Command Center</span>
+                <span className="preview-url">adpilot.app · Command Center</span>
               </div>
               <div className="preview-body">
                 <div className="p-sidebar">
@@ -488,11 +572,11 @@ export default function LandingPage() {
         <div className="container">
           <div className="sec-label">The Solution</div>
           <h2 className="sec-title">One Guardian.<br />Six Ways It Protects Your Spend.</h2>
-          <p className="sec-sub">Each agent is a specialized pipeline that collects data, reasons with AI, and takes action — so you don't have to.</p>
+          <p className="sec-sub">Each agent is a specialized pipeline that collects data, reasons with AI, and takes action, so you don't have to.</p>
           <div className="pillar-grid">
             <div className="pillar-card bento-wide accent-red">
               <div className="pc-header"><div className="pc-status pc-live"><span className="pc-status-dot" /><span className="pc-status-text">LIVE</span></div><div className="pc-num">01</div></div>
-              <h3>Budget Guardian</h3><p>Monitors campaigns every 15 min. Pauses bleeders. Scales winners. Acts before you wake up — so you never open Ads Manager to a disaster again.</p>
+              <h3>Budget Guardian</h3><p>Monitors campaigns every 15 min. Pauses bleeders. Scales winners. Acts before you wake up. You'll never open Ads Manager to a disaster again.</p>
             </div>
             <div className="pillar-card accent-blue">
               <div className="pc-header"><div className="pc-status pc-running"><span className="pc-status-dot" /><span className="pc-status-text">RUNNING</span></div><div className="pc-num">02</div></div>
@@ -500,7 +584,7 @@ export default function LandingPage() {
             </div>
             <div className="pillar-card bento-wide accent-pink">
               <div className="pc-header"><div className="pc-status pc-running"><span className="pc-status-dot" /><span className="pc-status-text">RUNNING</span></div><div className="pc-num">03</div></div>
-              <h3>Creative Agent</h3><p>Generates 5-10 headline variations, copy options, CTA suggestions, image prompts, and audience targeting — all based on research insights.</p>
+              <h3>Creative Agent</h3><p>Generates 5-10 headline variations, copy options, CTA suggestions, image prompts, and audience targeting, all based on research insights.</p>
             </div>
             <div className="pillar-card accent-purple">
               <div className="pc-header"><div className="pc-status pc-live"><span className="pc-status-dot" /><span className="pc-status-text">LIVE</span></div><div className="pc-num">04</div></div>
@@ -508,7 +592,7 @@ export default function LandingPage() {
             </div>
             <div className="pillar-card accent-emerald">
               <div className="pc-header"><div className="pc-status pc-running"><span className="pc-status-dot" /><span className="pc-status-text">RUNNING</span></div><div className="pc-num">05</div></div>
-              <h3>SEO Intelligence</h3><p>Keyword tracking, competitor gap analysis, content briefs, technical audits, and AI visibility monitoring — connected to your ad strategy.</p>
+              <h3>SEO Intelligence</h3><p>Keyword tracking, competitor gap analysis, content briefs, technical audits, and AI visibility monitoring, connected to your ad strategy.</p>
             </div>
             <div className="pillar-card bento-wide accent-cyan">
               <div className="pc-header"><div className="pc-status pc-live"><span className="pc-status-dot" /><span className="pc-status-text">LIVE</span></div><div className="pc-num">06</div></div>
