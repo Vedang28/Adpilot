@@ -8,3 +8,6 @@ coverage
 .prisma
 google-cloud-sdk/
 API_KEYS.md
+# Test/debug scripts
+test_*.js
+API_KEYS.md
