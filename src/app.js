@@ -38,6 +38,7 @@ const competitorRoutes        = require('./routes/competitorRoutes');
 const scalingRoutes           = require('./routes/scalingRoutes');
 const monitorRoutes           = require('./routes/monitorRoutes');
 const pulseRoutes             = require('./routes/pulseRoutes');
+const dashboardRoutes         = require('./routes/dashboardRoutes');
 
 const app = express();
 
@@ -276,6 +277,9 @@ app.use('/api/v1/research',      researchRoutes);
 app.use('/api/v1/competitors',   competitorRoutes);
 app.use('/api/v1/scaling',       scalingRoutes);
 app.use('/api/v1/pulse',         pulseRoutes);
+app.use('/api/v1/dashboard',    dashboardRoutes);
+// Alias for keyword research without the /seo prefix
+app.get('/api/v1/keywords/research', require('./middleware/auth').authenticate, require('./controllers/seoController').researchKeyword);
 
 // ── Serve React app in production ────────────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {

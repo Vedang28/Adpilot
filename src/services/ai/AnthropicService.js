@@ -109,30 +109,26 @@ class AnthropicService {
   }
 
   async generateAds({ product, keyword, targetAudience, platform, tone, campaignObjective }) {
-    const prompt = `You are an expert ad copywriter. Generate exactly 3 ad variations as a JSON array.
+    const prompt = `You are an expert direct response copywriter. Generate exactly 4 ad variations using these angles: Social Proof, Problem/Solution, Curiosity, Fear of Missing Out.
 
 Product/Service: ${product}${keyword ? `\nFocus Keyword: ${keyword}` : ''}
-Target Audience: ${targetAudience}
-Platform: ${platform || 'Meta + Google'}
-Tone: ${tone || 'professional but engaging'}
+Target Audience: ${targetAudience || 'general audience'}
+Platform: ${platform || 'Meta'}
 Objective: ${campaignObjective || 'conversions'}
 
-Return ONLY a valid JSON array, no markdown, no explanation:
+Return ONLY a valid JSON array, no markdown:
 [
   {
-    "headline": "max 40 chars",
-    "primaryText": "main ad copy, 2-3 sentences",
-    "description": "one line, max 90 chars",
-    "callToAction": "e.g. Learn More",
+    "angle": "Social Proof",
+    "headline": "max 40 chars, thumb-stopping",
+    "body": "2-3 sentence body copy",
+    "cta": "CTA button text (2-4 words)",
     "qualityScore": 85,
-    "reasoning": "why this variation works"
+    "qualityReason": "one sentence why this score"
   }
 ]
 
-Variation 1: Pain-point/emotional angle
-Variation 2: Benefit/value-proposition angle
-Variation 3: Social proof/urgency angle
-
+Use angles in this order: Social Proof, Problem/Solution, Curiosity, Fear of Missing Out.
 ONLY return the JSON array. No other text.`;
 
     const raw = await this.generate(prompt, { temperature: 0.85, maxTokens: 1000 });

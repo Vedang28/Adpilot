@@ -510,8 +510,220 @@ function AdIntelSection() {
   );
 }
 
+// ─── Keyword Research section ─────────────────────────────────────────────────
+function Sparkline({ data, width = 180, height = 44 }) {
+  if (!data || data.length < 2) return <div style={{ width, height, background: 'rgba(255,255,255,0.04)', borderRadius: 6 }} />;
+  const max = Math.max(...data.map(d => d.score || 0), 1);
+  const pts = data.map((d, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((d.score || 0) / max) * height;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const polyPts = `${pts.join(' ')} ${width},${height} 0,${height}`;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={polyPts} fill="url(#sg)" />
+      <polyline points={pts.join(' ')} fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function KeywordResearchSection() {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [query, setQuery] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: kwResult, isFetching, error } = useQuery({
+    queryKey: ['kw', 'research', searchTerm],
+    queryFn: () => api.get(`/keywords/research?q=${encodeURIComponent(searchTerm)}`).then(r => r.data.data),
+    enabled: !!searchTerm,
+    staleTime: 2 * 60 * 60 * 1000, // 2h
+  });
+
+  const { data: tracked } = useQuery({
+    queryKey: ['seo', 'keywords'],
+    queryFn: () => api.get('/seo/keywords').then(r => r.data.data?.keywords ?? r.data.data ?? []),
+  });
+
+  const addKw = useMutation({
+    mutationFn: (kw) => api.post('/seo/keywords', { keyword: kw }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['seo', 'keywords'] }); toast.success('Keyword tracked'); },
+  });
+
+  const search = () => { if (query.trim().length >= 2) setSearchTerm(query.trim()); };
+
+  const trendColor = kwResult?.trend === 'rising' ? '#10b981' : kwResult?.trend === 'falling' ? '#ef4444' : '#f59e0b';
+  const trendLabel = kwResult?.trend === 'rising' ? 'Rising' : kwResult?.trend === 'falling' ? 'Falling' : 'Stable';
+
+  return (
+    <div className="space-y-4">
+      {/* Search */}
+      <div className="card">
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-text-primary">Trend Intelligence Center</h3>
+          <p className="text-xs text-text-secondary mt-0.5">Discover search trends, related opportunities, and AI insights for any keyword</p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            className="input-field flex-1"
+            placeholder="Search any keyword or topic…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && search()}
+          />
+          <button onClick={search} disabled={query.trim().length < 2 || isFetching} className="btn-primary whitespace-nowrap flex items-center gap-2">
+            <Search className="w-4 h-4" />
+            {isFetching ? 'Searching…' : 'Analyze'}
+          </button>
+        </div>
+      </div>
+
+      {/* Results */}
+      {isFetching && (
+        <div className="card py-12 text-center">
+          <Loader2 className="w-6 h-6 mx-auto text-accent-purple animate-spin mb-2" />
+          <p className="text-xs text-text-secondary">Pulling trend data…</p>
+        </div>
+      )}
+
+      {kwResult && !isFetching && (
+        <div className="space-y-4">
+          {/* Trend score banner */}
+          <div className="card" style={{ borderColor: `${trendColor}30` }}>
+            <div className="flex items-start justify-between gap-4">
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <span style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>"{kwResult.keyword}"</span>
+                  <span style={{ background: `${trendColor}20`, color: trendColor, fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20 }}>
+                    {trendLabel}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Trend Score</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: trendColor }}>{kwResult.trendScore || kwResult.trendAvg || 0}/100</div>
+                  </div>
+                  {kwResult.difficulty && (
+                    <div>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Difficulty</div>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{kwResult.difficulty}</div>
+                    </div>
+                  )}
+                  {kwResult.bestPlatform && (
+                    <div>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best Platform</div>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{kwResult.bestPlatform}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={{ flexShrink: 0 }}>
+                <Sparkline data={kwResult.trendHistory || []} width={160} height={48} />
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', textAlign: 'center', marginTop: 4 }}>90-day trend</div>
+              </div>
+            </div>
+            <button
+              onClick={() => addKw.mutate(kwResult.keyword)}
+              disabled={addKw.isPending}
+              style={{
+                marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: 'rgba(139,92,246,0.15)', color: '#8b5cf6',
+                border: '1px solid rgba(139,92,246,0.25)', borderRadius: 8,
+                fontSize: 12, fontWeight: 600, padding: '6px 14px', cursor: 'pointer',
+              }}
+            >
+              <Plus className="w-3.5 h-3.5" /> Track This Keyword
+            </button>
+          </div>
+
+          {/* Related opportunities + AI Insight */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Related keywords */}
+            {(kwResult.suggestions?.length > 0 || kwResult.relatedKeywords?.length > 0) && (
+              <div className="card">
+                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Related Opportunities</p>
+                <div className="space-y-2">
+                  {[
+                    ...(kwResult.relatedKeywords || []).map(r => ({ keyword: r.keyword, trend: r.trend, rising: r.trend === 'rising' })),
+                    ...(kwResult.suggestions || []).slice(0, 8).map(s => ({ keyword: s, trend: 'stable', rising: false })),
+                  ].slice(0, 10).map((item, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 12, color: item.rising ? '#10b981' : 'rgba(255,255,255,0.4)' }}>
+                        {item.rising ? '↑' : '→'}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{item.keyword}</span>
+                      <button
+                        onClick={() => addKw.mutate(item.keyword)}
+                        style={{ fontSize: 10, color: '#8b5cf6', background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        +Track
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* AI Insight */}
+            {kwResult.aiInsight && (
+              <div className="card" style={{ borderColor: 'rgba(139,92,246,0.2)', background: 'rgba(139,92,246,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                  <Sparkles className="w-4 h-4 text-accent-purple" />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>AI INSIGHT</span>
+                </div>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>{kwResult.aiInsight}</p>
+                <div style={{ marginTop: 12, fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+                  Source: {kwResult.source || 'Google Trends + Autocomplete'}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tracked keywords */}
+      {(tracked?.length ?? 0) > 0 && (
+        <div className="card p-0 overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-border">
+            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Your Tracked Keywords</p>
+          </div>
+          <div className="divide-y divide-border">
+            {(tracked ?? []).slice(0, 10).map((kw) => {
+              const rankChange = kw.previousRank && kw.currentRank ? kw.previousRank - kw.currentRank : 0;
+              const trend = rankChange > 2 ? 'rising' : rankChange < -2 ? 'falling' : 'stable';
+              return (
+                <div key={kw.id} className="flex items-center gap-3 px-5 py-3 hover:bg-white/2">
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: trend === 'rising' ? '#10b981' : trend === 'falling' ? '#ef4444' : '#f59e0b', flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>{kw.keyword}</span>
+                  {kw.currentRank && <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Rank #{kw.currentRank}</span>}
+                  <span style={{ fontSize: 11, color: trend === 'rising' ? '#10b981' : trend === 'falling' ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
+                    {trend}
+                  </span>
+                  <button
+                    onClick={() => { setQuery(kw.keyword); setSearchTerm(kw.keyword); }}
+                    style={{ fontSize: 11, color: '#8b5cf6', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    Research
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
-const TABS = ['Competitors', 'Market Research', 'Ad Intelligence'];
+const TABS = ['Competitors', 'Keyword Research', 'Market Research', 'Ad Intelligence'];
 
 export default function ResearchPage() {
   const [activeTab, setActiveTab] = useState('Competitors');
@@ -545,7 +757,8 @@ export default function ResearchPage() {
         </div>
       </div>
 
-      {activeTab === 'Competitors'       && <CompetitorSection />}
+      {activeTab === 'Competitors'        && <CompetitorSection />}
+      {activeTab === 'Keyword Research'  && <KeywordResearchSection />}
       {activeTab === 'Market Research'   && <MarketResearchSection />}
       {activeTab === 'Ad Intelligence'   && <AdIntelSection />}
     </div>

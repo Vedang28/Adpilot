@@ -154,13 +154,150 @@ function AllAdsTab() {
 }
 
 // ─── Generate tab ─────────────────────────────────────────────────────────────
-const SCORE_COLOR = (s) => s >= 8 ? 'text-green-400' : s >= 6 ? 'text-yellow-400' : 'text-red-400';
+
+const ANGLE_COLORS = {
+  'Social Proof':     { bg: 'rgba(16,185,129,0.12)',  color: '#10b981' },
+  'Problem/Solution': { bg: 'rgba(139,92,246,0.12)', color: '#8b5cf6' },
+  'Curiosity':        { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b' },
+  'Fear of Missing Out': { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
+  'Authority':        { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
+};
+
+function QualityBar({ score }) {
+  const color = score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Quality score</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color }}>{score}/100</span>
+      </div>
+      <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', borderRadius: 2, width: `${score}%`,
+          background: `linear-gradient(90deg, #8b5cf6, ${color})`,
+          transition: 'width 0.8s ease',
+        }} />
+      </div>
+    </div>
+  );
+}
+
+function AdVariationCard({ ad, isBest, onCopy, onSave, savePending }) {
+  const [copied, setCopied] = useState(false);
+  const angleStyle = ANGLE_COLORS[ad.angle] || ANGLE_COLORS['Curiosity'];
+
+  const handleCopy = () => {
+    const text = `${ad.headline}\n\n${ad.body || ad.primaryText || ''}\n\nCTA: ${ad.cta || ad.callToAction || ''}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      onCopy?.();
+    });
+  };
+
+  return (
+    <div style={{
+      background: isBest ? 'rgba(139,92,246,0.06)' : 'rgba(255,255,255,0.03)',
+      border: `1px solid ${isBest ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.08)'}`,
+      borderRadius: 14, padding: 20,
+      display: 'flex', flexDirection: 'column', gap: 14,
+      transition: 'transform 0.2s, border-color 0.2s',
+    }}>
+      {/* Header: angle badge + best label */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{
+          background: angleStyle.bg, color: angleStyle.color,
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+          textTransform: 'uppercase', padding: '3px 10px', borderRadius: 20,
+        }}>
+          {ad.angle || 'Variation'}
+        </span>
+        {isBest && (
+          <span style={{
+            background: 'rgba(139,92,246,0.2)', color: '#8b5cf6',
+            fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+          }}>
+            BEST
+          </span>
+        )}
+      </div>
+
+      {/* Headline */}
+      <div>
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>HEADLINE</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>
+          {ad.headline}
+        </div>
+      </div>
+
+      {/* Body */}
+      {(ad.body || ad.primaryText) && (
+        <div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>BODY</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.55 }}>
+            {(ad.body || ad.primaryText || '').slice(0, 160)}{(ad.body || ad.primaryText || '').length > 160 ? '…' : ''}
+          </div>
+        </div>
+      )}
+
+      {/* CTA */}
+      {(ad.cta || ad.callToAction) && (
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          fontSize: 11, color: '#10b981', fontWeight: 600,
+        }}>
+          <span style={{ fontSize: 9 }}>▶</span>
+          CTA: {ad.cta || ad.callToAction}
+        </div>
+      )}
+
+      {/* Quality */}
+      {ad.qualityScore !== undefined && <QualityBar score={ad.qualityScore} />}
+
+      {/* Why it works */}
+      {(ad.qualityReason || ad.hook) && (
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic', lineHeight: 1.4 }}>
+          {ad.qualityReason || ad.hook}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 4 }}>
+        <button
+          onClick={handleCopy}
+          style={{
+            flex: 1, padding: '7px 0', borderRadius: 8,
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+            color: copied ? '#10b981' : 'rgba(255,255,255,0.6)',
+            fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+        <button
+          onClick={() => onSave(ad)}
+          disabled={savePending}
+          style={{
+            flex: 1, padding: '7px 0', borderRadius: 8,
+            background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.3)',
+            color: '#8b5cf6', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function GenerateTab() {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ campaignId: '', description: '', tone: 'professional', platform: 'meta' });
-  const [variations, setVariations] = useState([]);
+  const [form, setForm] = useState({
+    keyword: '', platform: 'meta', goal: 'conversions',
+    targetAudience: '', productName: '', campaignId: '',
+  });
+  const [result, setResult] = useState(null);
 
   const { data: campaigns } = useQuery({
     queryKey: ['campaigns'],
@@ -168,155 +305,146 @@ function GenerateTab() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: () => api.post('/ads/generate', {
-      campaignId:  form.campaignId,
-      description: form.description,
-      tone:        form.tone,
-      platform:    form.platform,
-      count:       3,
-    }),
+    mutationFn: () => api.post(
+      form.campaignId ? `/campaigns/${form.campaignId}/ads/generate` : '/ads/generate',
+      { keyword: form.keyword, platform: form.platform, goal: form.goal,
+        targetAudience: form.targetAudience, productName: form.productName, count: 4 }
+    ),
     onSuccess: (res) => {
-      const ads = res.data.data?.ads ?? res.data.data ?? [];
-      setVariations(ads.map((a, i) => ({ ...a, score: Math.floor(Math.random() * 3) + 7, _index: i })));
+      const data = res.data.data;
+      // Handle both API formats: {variations:[...]} and [{headline,...},...]
+      const variations = Array.isArray(data) ? data
+        : Array.isArray(data?.variations) ? data.variations
+        : [];
+      setResult({ variations, keyInsight: data?.keyInsight });
     },
-    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Generation failed'),
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Generation failed. Try again.'),
   });
 
   const saveMutation = useMutation({
-    mutationFn: (ad) => api.post(`/campaigns/${form.campaignId}/ads`, {
-      headline: ad.headline, primaryText: ad.primaryText, callToAction: ad.callToAction,
-      platform: form.platform, status: 'draft',
-    }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['ads'] }); toast.success('Ad saved to campaign'); },
-    onError: () => toast.error('Failed to save ad'),
+    mutationFn: (ad) => api.post(
+      form.campaignId ? `/campaigns/${form.campaignId}/ads` : `/campaigns/${(campaigns?.[0])?.id}/ads`,
+      { headline: ad.headline, primaryText: ad.body || ad.primaryText, callToAction: ad.cta || ad.callToAction,
+        platform: form.platform, status: 'draft' }
+    ),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['ads'] }); toast.success('Ad saved'); },
+    onError: () => toast.error('Save failed — select a campaign first'),
   });
 
-  const regen = async (idx) => {
-    setVariations((v) => v.map((a) => a._index === idx ? { ...a, _loading: true } : a));
-    await new Promise((r) => setTimeout(r, 800));
-    setVariations((v) => v.map((a) => a._index === idx ? {
-      ...a, _loading: false,
-      headline: `${a.headline} (v2)`,
-      score: Math.floor(Math.random() * 3) + 7,
-    } : a));
-  };
+  const variations = result?.variations ?? [];
+  const bestIdx = variations.length > 0
+    ? variations.reduce((best, v, i) => (v.qualityScore || 0) > (variations[best]?.qualityScore || 0) ? i : best, 0)
+    : -1;
+
+  const canGenerate = form.keyword.trim().length >= 2;
 
   return (
     <div className="space-y-5">
       {/* Form */}
       <div className="card space-y-4">
-        <h3 className="text-sm font-semibold text-text-primary">Generate Ad Variations</h3>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">Campaign</label>
-            <select
+        <div>
+          <h3 className="text-sm font-semibold text-text-primary">AI Creative Studio</h3>
+          <p className="text-xs text-text-secondary mt-0.5">Generate 4 ad angles — Social Proof, Problem/Solution, Curiosity, and FOMO</p>
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div className="sm:col-span-3">
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">Keyword / Product *</label>
+            <input
               className="input-field"
-              value={form.campaignId}
-              onChange={(e) => setForm({ ...form, campaignId: e.target.value })}
-            >
-              <option value="">Select campaign…</option>
-              {(campaigns ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+              placeholder="e.g. protein shake, CRM software, online yoga course…"
+              value={form.keyword}
+              onChange={(e) => setForm({ ...form, keyword: e.target.value })}
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1.5">Platform</label>
             <select className="input-field" value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })}>
-              <option value="meta">Meta</option>
-              <option value="google">Google</option>
-              <option value="both">Both</option>
+              <option value="meta">Meta (Facebook/Instagram)</option>
+              <option value="google">Google Search</option>
+              <option value="tiktok">TikTok</option>
+              <option value="linkedin">LinkedIn</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">Tone</label>
-            <select className="input-field" value={form.tone} onChange={(e) => setForm({ ...form, tone: e.target.value })}>
-              {['professional', 'friendly', 'urgent', 'playful'].map((t) => (
-                <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-              ))}
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">Goal</label>
+            <select className="input-field" value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value })}>
+              <option value="conversions">Conversions / Sales</option>
+              <option value="leads">Lead Generation</option>
+              <option value="traffic">Drive Traffic</option>
+              <option value="awareness">Brand Awareness</option>
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">Campaign (optional)</label>
+            <select className="input-field" value={form.campaignId} onChange={(e) => setForm({ ...form, campaignId: e.target.value })}>
+              <option value="">No campaign — just generate</option>
+              {(campaigns ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">Target Audience (optional)</label>
+            <input
+              className="input-field"
+              placeholder="e.g. working adults 25-40, gym-goers, B2B SaaS founders…"
+              value={form.targetAudience}
+              onChange={(e) => setForm({ ...form, targetAudience: e.target.value })}
+            />
+          </div>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-text-secondary mb-1.5">Product / Service Description</label>
-          <textarea
-            className="input-field h-24 resize-none"
-            placeholder="Describe your product or service in a few sentences…"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
-        </div>
+
         <button
           onClick={() => generateMutation.mutate()}
-          disabled={!form.campaignId || !form.description.trim() || generateMutation.isPending}
+          disabled={!canGenerate || generateMutation.isPending}
           className="btn-primary flex items-center gap-2"
         >
           <Sparkles className="w-4 h-4" />
-          {generateMutation.isPending ? 'Generating…' : 'Generate Ads'}
+          {generateMutation.isPending ? 'AI is writing your ads…' : 'Generate 4 Ad Variations'}
         </button>
       </div>
 
       {/* Loading skeleton */}
       {generateMutation.isPending && (
-        <div className="grid sm:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
+        <div className="grid sm:grid-cols-2 gap-4">
+          {[...Array(4)].map((_, i) => (
             <div key={i} className="card space-y-3">
-              <div className="flex items-center gap-2 mb-2">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <Sparkles className="w-4 h-4 text-accent-purple animate-pulse" />
-                <span className="text-xs text-text-secondary">AI is crafting your ads…</span>
+                <span className="text-xs text-text-secondary">Crafting {['social proof', 'problem/solution', 'curiosity', 'FOMO'][i]} angle…</span>
               </div>
-              {[...Array(4)].map((__, j) => <div key={j} className="skeleton h-3 rounded" style={{ width: `${80 - j * 10}%` }} />)}
+              {[...Array(4)].map((__, j) => <div key={j} className="skeleton h-3 rounded" style={{ width: `${85 - j * 12}%` }} />)}
             </div>
           ))}
         </div>
       )}
 
+      {/* AI Insight */}
+      {result?.keyInsight && !generateMutation.isPending && (
+        <div style={{
+          background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)',
+          borderRadius: 10, padding: '12px 16px',
+          display: 'flex', gap: 10, alignItems: 'flex-start',
+        }}>
+          <Sparkles className="w-4 h-4 text-accent-purple shrink-0 mt-0.5" />
+          <div>
+            <div className="text-xs font-semibold text-accent-purple mb-1">AI INSIGHT</div>
+            <div className="text-xs text-text-secondary leading-relaxed">{result.keyInsight}</div>
+          </div>
+        </div>
+      )}
+
       {/* Variation cards */}
       {variations.length > 0 && !generateMutation.isPending && (
-        <div className="grid sm:grid-cols-3 gap-4">
-          {variations.map((ad) => (
-            <div key={ad._index} className="card space-y-3 relative">
-              {/* Quality score */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-secondary">Variation {ad._index + 1}</span>
-                <span className={`text-sm font-bold ${SCORE_COLOR(ad.score)}`}>{ad.score}/10</span>
-              </div>
-
-              {ad._loading ? (
-                <div className="space-y-2">{[...Array(3)].map((_, j) => <div key={j} className="skeleton h-3 rounded" />)}</div>
-              ) : (
-                <>
-                  <div>
-                    <p className="text-xs text-text-secondary mb-0.5">Headline</p>
-                    <p className="text-sm font-semibold text-text-primary leading-snug">{ad.headline}</p>
-                  </div>
-                  {ad.primaryText && (
-                    <div>
-                      <p className="text-xs text-text-secondary mb-0.5">Primary Text</p>
-                      <p className="text-xs text-text-secondary leading-relaxed line-clamp-3">{ad.primaryText}</p>
-                    </div>
-                  )}
-                  {ad.callToAction && (
-                    <div className="text-xs text-accent-green">CTA: {ad.callToAction}</div>
-                  )}
-                </>
-              )}
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={() => saveMutation.mutate(ad)}
-                  disabled={saveMutation.isPending}
-                  className="flex-1 btn-primary text-xs py-1.5"
-                >
-                  Use This
-                </button>
-                <button
-                  onClick={() => regen(ad._index)}
-                  className="p-1.5 btn-secondary rounded-lg"
-                  title="Regenerate"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {variations.map((ad, i) => (
+            <AdVariationCard
+              key={i}
+              ad={ad}
+              isBest={i === bestIdx && variations.length > 1}
+              onCopy={() => toast.success('Copied to clipboard')}
+              onSave={(ad) => saveMutation.mutate(ad)}
+              savePending={saveMutation.isPending}
+            />
           ))}
         </div>
       )}

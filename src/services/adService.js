@@ -58,17 +58,25 @@ async function generateAdWithAI(campaignId, brief, teamId) {
     campaignObjective: brief.goal || brief.objective || campaign?.objective,
   };
 
+  const ANGLES = ['Social Proof', 'Problem/Solution', 'Curiosity', 'Fear of Missing Out'];
+
   const toVariations = (aiResult, source) =>
     Array.isArray(aiResult)
-      ? aiResult.map(v => ({
+      ? aiResult.map((v, i) => ({
+          // New frontend format
+          angle:         v.angle || ANGLES[i % ANGLES.length],
           headline:      v.headline,
-          primaryText:   v.primaryText,
-          description:   v.description,
-          ctaType:       v.callToAction?.toUpperCase().replace(/\s+/g, '_') || 'LEARN_MORE',
+          body:          v.body || v.primaryText || v.description || '',
+          cta:           v.cta || v.callToAction || 'Learn More',
+          qualityScore:  v.qualityScore ?? Math.floor(65 + Math.random() * 30),
+          qualityReason: v.qualityReason || v.reasoning || '',
+          hook:          v.hook || '',
+          bestFor:       v.bestFor || '',
+          // Legacy format kept for save-to-campaign flow
+          primaryText:   v.body || v.primaryText || '',
+          callToAction:  v.cta || v.callToAction || 'Learn More',
           platform:      campaign?.platform || brief.platform || 'meta',
           status:        'draft',
-          qualityScore:  v.qualityScore,
-          reasoning:     v.reasoning,
           isAiGenerated: true,
           aiSource:      source,
         }))
@@ -106,34 +114,13 @@ async function generateAdWithAI(campaignId, brief, teamId) {
   }
 
   // Fallback: mock variations (labelled as mock)
+  const pl = campaign?.platform || brief.platform || 'meta';
+  const prod = brief.productName || brief.keyword || 'Your Product';
   return [
-    {
-      headline:    `${brief.productName || 'Your Product'} – Trusted by Thousands`,
-      primaryText: `Discover how ${brief.productName || 'our solution'} can transform your business. ${brief.keyBenefit || 'Get results fast.'}`,
-      description: 'Learn more and get started today.',
-      ctaType:     'LEARN_MORE',
-      platform:    campaign.platform,
-      status:      'draft',
-      isMock:      true,
-    },
-    {
-      headline:    `${brief.offer || 'Limited Time'} – Act Now`,
-      primaryText: `Don't miss out on ${brief.productName || 'this offer'}. ${brief.urgency || 'Limited spots available.'}`,
-      description: "Claim your spot before it's too late.",
-      ctaType:     'SIGN_UP',
-      platform:    campaign.platform,
-      status:      'draft',
-      isMock:      true,
-    },
-    {
-      headline:    `Why Choose ${brief.productName || 'Us'}?`,
-      primaryText: `${brief.differentiator || 'We deliver results that matter.'} Join thousands of happy customers.`,
-      description: 'See the difference for yourself.',
-      ctaType:     'GET_QUOTE',
-      platform:    campaign.platform,
-      status:      'draft',
-      isMock:      true,
-    },
+    { angle: 'Social Proof',       headline: `${prod} – Trusted by Thousands`,      body: `Discover how ${prod} can transform your results. Join thousands of happy customers.`, cta: 'Learn More',    qualityScore: 72, qualityReason: 'Social proof builds trust quickly.', platform: pl, status: 'draft', isMock: true },
+    { angle: 'Problem/Solution',   headline: `Tired of Mediocre Results?`,           body: `${prod} solves the #1 problem you've been struggling with. Get real results fast.`,   cta: 'Try Risk-Free', qualityScore: 78, qualityReason: 'Pain-point hook drives high relevance.', platform: pl, status: 'draft', isMock: true },
+    { angle: 'Curiosity',          headline: `The Secret Behind Top Performers`,     body: `What if the difference between you and the best wasn't skill — it was ${prod}?`,       cta: 'Find Out',      qualityScore: 69, qualityReason: 'Curiosity gap encourages clicks.', platform: pl, status: 'draft', isMock: true },
+    { angle: 'Fear of Missing Out', headline: `Only 48 Hours Left – Don't Miss Out`, body: `${prod} is changing the game. Those who move first win. Don't let competitors get there first.`, cta: 'Act Now', qualityScore: 74, qualityReason: 'Urgency + FOMO drives conversion.', platform: pl, status: 'draft', isMock: true },
   ];
 }
 

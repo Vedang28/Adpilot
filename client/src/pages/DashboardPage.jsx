@@ -1,16 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  Zap, Shield, DollarSign, AlertTriangle,
-  Search, Wand2, TrendingUp, ArrowRight,
-  Activity, CheckCircle2, Clock, PauseCircle,
-  Bell, ShieldAlert, Crosshair,
-} from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../lib/api';
-import Badge from '../components/ui/Badge';
-import { FEATURE_LIST, COLOR_MAP } from '../config/features';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 function timeAgo(dateStr) {
   const secs = Math.floor((Date.now() - new Date(dateStr)) / 1000);
   if (secs < 60)    return 'just now';
@@ -19,359 +11,383 @@ function timeAgo(dateStr) {
   return `${Math.floor(secs / 86400)}d ago`;
 }
 
-const STATUS_ICON = {
-  active:  <CheckCircle2 className="w-4 h-4 text-accent-green" />,
-  paused:  <PauseCircle  className="w-4 h-4 text-yellow-400" />,
-  draft:   <Clock        className="w-4 h-4 text-text-secondary" />,
-};
+// ── SVG Icons ─────────────────────────────────────────────────────────────────
+const AdsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(139,92,246,0.9)" strokeWidth="1.5">
+    <rect x="3" y="3" width="18" height="18" rx="2"/>
+    <path d="M8 12h8M12 8v8"/>
+  </svg>
+);
+const KeywordsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(16,185,129,0.9)" strokeWidth="1.5">
+    <circle cx="11" cy="11" r="8"/>
+    <path d="M21 21l-4.35-4.35M8 11h6M11 8v6"/>
+  </svg>
+);
+const CompetitorsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(245,158,11,0.9)" strokeWidth="1.5">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+);
+const AlertsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(239,68,68,0.9)" strokeWidth="1.5">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+  </svg>
+);
+const TrendUpIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5">
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+    <polyline points="17 6 23 6 23 12"/>
+  </svg>
+);
+const TrendDownIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5">
+    <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
+    <polyline points="17 18 23 18 23 12"/>
+  </svg>
+);
 
-const NOTIF_TYPE_COLORS = {
-  rule_triggered: 'bg-yellow-500/15 text-yellow-400',
-  audit_complete: 'bg-green-500/15  text-green-400',
-  keyword_alert:  'bg-blue-500/15   text-blue-400',
-};
-
-// ─── Live Status Card ─────────────────────────────────────────────────────────
-function StatusCard({ icon: Icon, iconBg, iconColor, label, value, sub, pulse }) {
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+function StatCard({ icon, label, value, delta, deltaLabel, urgent, accentColor }) {
+  const hasDelta = delta !== undefined && delta !== null && delta > 0;
   return (
-    <div className="card flex items-start gap-4">
-      <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center shrink-0 relative`}>
-        <Icon className={`w-5 h-5 ${iconColor}`} />
-        {pulse && (
-          <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-accent-green">
-            <span className="absolute inset-0 rounded-full bg-accent-green animate-ping opacity-75" />
+    <div style={{
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 14,
+      padding: '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{
+          width: 38, height: 38, borderRadius: 10,
+          background: `${accentColor}18`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {icon}
+        </div>
+        {urgent > 0 && (
+          <span style={{
+            background: 'rgba(239,68,68,0.15)', color: '#ef4444',
+            fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+          }}>
+            {urgent} urgent
           </span>
         )}
       </div>
-      <div className="min-w-0">
-        <p className="text-xs text-text-secondary font-medium">{label}</p>
-        <p className="text-2xl font-bold text-text-primary mt-0.5 leading-none">{value}</p>
-        {sub && <p className="text-xs text-text-secondary mt-1">{sub}</p>}
+      <div>
+        <div style={{ fontSize: 28, fontWeight: 700, color: 'rgba(255,255,255,0.9)', lineHeight: 1 }}>
+          {value ?? '—'}
+        </div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>{label}</div>
+      </div>
+      {hasDelta && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#10b981' }}>
+          <TrendUpIcon />
+          <span>+{delta} {deltaLabel}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Action Item Card ───────────────────────────────────────────────────────────
+const PRIORITY_STYLE = {
+  HIGH:   { bg: 'rgba(239,68,68,0.1)',    color: '#ef4444',  label: 'HIGH' },
+  MEDIUM: { bg: 'rgba(245,158,11,0.1)',   color: '#f59e0b',  label: 'MED' },
+  LOW:    { bg: 'rgba(16,185,129,0.1)',   color: '#10b981',  label: 'LOW' },
+};
+
+function ActionItem({ item }) {
+  const navigate = useNavigate();
+  const style = PRIORITY_STYLE[item.priority] || PRIORITY_STYLE.LOW;
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 12,
+      padding: '14px 16px',
+      marginBottom: 10,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{
+          background: style.bg, color: style.color,
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+          padding: '2px 8px', borderRadius: 20,
+        }}>
+          {style.label}
+        </span>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginBottom: 4 }}>
+        {item.title}
+      </div>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginBottom: 12, lineHeight: 1.5 }}>
+        {item.description}
+      </div>
+      {item.ctaUrl && (
+        <button
+          onClick={() => navigate(item.ctaUrl)}
+          style={{
+            background: 'rgba(139,92,246,0.15)', color: '#8b5cf6',
+            border: '1px solid rgba(139,92,246,0.25)', borderRadius: 8,
+            fontSize: 12, fontWeight: 600, padding: '6px 14px', cursor: 'pointer',
+          }}
+        >
+          {item.cta} →
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Activity Feed Item ─────────────────────────────────────────────────────────
+function FeedItem({ item }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0',
+      borderBottom: '1px solid rgba(255,255,255,0.05)',
+    }}>
+      {item.unread && (
+        <div style={{
+          width: 6, height: 6, borderRadius: '50%',
+          background: '#8b5cf6', marginTop: 5, flexShrink: 0,
+        }} />
+      )}
+      <div style={{ flex: 1, minWidth: 0, paddingLeft: item.unread ? 0 : 16 }}>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.4 }}>
+          {item.message.slice(0, 90)}{item.message.length > 90 ? '…' : ''}
+        </div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>
+          {item.timeAgo}
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── System Status Pillar ──────────────────────────────────────────────────────
-// Static icon map (cannot import by name from FEATURES at runtime in JSX)
-const FEATURE_ICONS = {
-  sentinel: ShieldAlert,
-  apex:     TrendingUp,
-  radar:    Crosshair,
-  beacon:   Shield,
-  forge:    Wand2,
-  pulse:    Search,
-};
-
-function SystemStatusPillar({ feature, hasData }) {
-  const c    = COLOR_MAP[feature.color] ?? {};
-  const Icon = FEATURE_ICONS[feature.id] ?? Zap;
-  const navigate = useNavigate();
-
+// ── Keyword Trend Row ──────────────────────────────────────────────────────────
+function TrendRow({ kw }) {
+  const isUp = kw.trend === 'rising';
   return (
-    <button
-      onClick={() => navigate(feature.path)}
-      className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all duration-200
-        hover:scale-105 ${c.bg} ${c.border} group`}
-    >
-      <div className={`w-9 h-9 rounded-xl ${c.iconBg} flex items-center justify-center`}>
-        <Icon className={`w-4 h-4 ${c.text}`} />
-      </div>
-      <div className="text-center">
-        <p className={`text-[11px] font-bold ${c.text}`}>{feature.codename}</p>
-        <p className="text-[9px] text-text-secondary leading-tight">{feature.sublabel}</p>
-      </div>
-      <div className="w-1.5 h-1.5 rounded-full bg-current opacity-50 group-hover:opacity-100 transition-opacity" />
-    </button>
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
+      borderBottom: '1px solid rgba(255,255,255,0.05)',
+    }}>
+      {isUp ? <TrendUpIcon /> : <TrendDownIcon />}
+      <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>{kw.keyword}</span>
+      {kw.change && (
+        <span style={{ fontSize: 11, color: isUp ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+          {isUp ? '+' : ''}{kw.change}
+        </span>
+      )}
+    </div>
   );
 }
 
-// ─── Quick Action Card ────────────────────────────────────────────────────────
-function ActionCard({ icon: Icon, iconBg, iconColor, title, desc, to, comingSoon, onClick }) {
-  const navigate = useNavigate();
-  const handleClick = () => {
-    if (onClick) { onClick(); return; }
-    if (!comingSoon) navigate(to);
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      disabled={comingSoon}
-      className="card text-left w-full group hover:border-accent-blue/40 hover:shadow-lg hover:shadow-accent-blue/5 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center`}>
-          <Icon className={`w-5 h-5 ${iconColor}`} />
-        </div>
-        {comingSoon ? (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/20">
-            SOON
-          </span>
-        ) : (
-          <ArrowRight className="w-4 h-4 text-text-secondary group-hover:text-accent-blue group-hover:translate-x-0.5 transition-all" />
-        )}
-      </div>
-      <p className="text-sm font-semibold text-text-primary">{title}</p>
-      <p className="text-xs text-text-secondary mt-1 leading-relaxed">{desc}</p>
-    </button>
-  );
-}
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ── Main Dashboard ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const navigate = useNavigate();
 
-  const { data: overview, isLoading: loadingOverview } = useQuery({
-    queryKey: ['analytics', 'overview'],
-    queryFn: () => api.get('/analytics/overview').then((r) => r.data.data),
+  const { data: metrics, isLoading } = useQuery({
+    queryKey: ['dashboard', 'metrics'],
+    queryFn: () => api.get('/dashboard/metrics').then(r => r.data.data),
+    refetchInterval: 60_000,
   });
 
-  const { data: campaigns, isLoading: loadingCampaigns } = useQuery({
-    queryKey: ['campaigns'],
-    queryFn: () => api.get('/campaigns').then((r) => r.data.data.campaigns),
-  });
+  const stats = metrics?.stats ?? {};
+  const health = metrics?.health ?? { score: 0, label: 'Loading...' };
+  const actionItems = metrics?.actionItems ?? [];
+  const feed = metrics?.activityFeed ?? [];
+  const trends = metrics?.keywordTrends ?? [];
 
-  const { data: notifData } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => api.get('/notifications').then((r) => r.data.data),
-    refetchInterval: 30_000,
-  });
-
-  const { data: anomalyData } = useQuery({
-    queryKey: ['analytics', 'anomalies'],
-    queryFn: () => api.get('/analytics/anomalies').then((r) => r.data.data),
-  });
-
-  const { data: seoAudits } = useQuery({
-    queryKey: ['seo', 'audits', 'latest'],
-    queryFn: () => api.get('/seo/audits?limit=1').then((r) => r.data.data),
-  });
-
-  const notifications = notifData?.notifications ?? [];
-  const alertCount    = (anomalyData?.anomalies ?? []).length;
-  const latestAudit   = seoAudits?.audits?.[0] ?? seoAudits?.[0];
-  const seoScore      = latestAudit?.overallScore ?? null;
-  const activeCampaigns = overview?.activeCampaigns ?? 0;
-  const todaySpend    = overview?.totalAdSpend ? (overview.totalAdSpend * 0.08).toFixed(0) : 0;
-
-  const isEmpty = !loadingOverview && (overview?.totalCampaigns ?? 0) === 0;
-
-  if (isEmpty) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-        <div className="w-16 h-16 rounded-2xl bg-accent-blue/10 flex items-center justify-center mb-5">
-          <Zap className="w-8 h-8 text-accent-blue" />
-        </div>
-        <h1 className="text-2xl font-bold text-text-primary mb-2">Welcome to AdPilot</h1>
-        <p className="text-text-secondary text-sm mb-8 max-w-sm">
-          Your AI-powered ad and SEO automation platform is ready. Create your first campaign to get started.
-        </p>
-        <div className="flex gap-3">
-          <button onClick={() => navigate('/campaigns')} className="btn-primary flex items-center gap-2">
-            <Zap className="w-4 h-4" />Create Campaign
-          </button>
-          <button onClick={() => navigate('/seo')} className="btn-secondary flex items-center gap-2">
-            <Shield className="w-4 h-4" />Run SEO Audit
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const healthPct = health.score;
+  const healthColor = healthPct >= 75 ? '#10b981' : healthPct >= 50 ? '#f59e0b' : '#ef4444';
 
   return (
-    <div className="space-y-6">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-text-primary">Command Center</h1>
-        <p className="text-sm text-text-secondary mt-0.5">Live status across your campaigns and SEO</p>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'rgba(255,255,255,0.9)', margin: 0 }}>
+          Daily Briefing
+        </h1>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
+          Your ad intelligence summary
+        </p>
       </div>
 
-      {/* ── AI System Status ────────────────────────────────────────────────── */}
-      <div className="card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">AI Systems</p>
-          <span className="text-[10px] text-text-secondary">Click any feature to open</span>
+      {/* Zone A: Health Bar */}
+      <div style={{
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 14, padding: '16px 20px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
+              {isLoading ? 'Loading...' : health.label}
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+              {actionItems.length > 0 ? `${actionItems.length} action${actionItems.length !== 1 ? 's' : ''} suggested` : 'All systems active'}
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: healthColor }}>{healthPct}%</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>health score</div>
+          </div>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-          {FEATURE_LIST.map((f) => (
-            <SystemStatusPillar key={f.id} feature={f} hasData />
-          ))}
+        <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', borderRadius: 3,
+            width: `${healthPct}%`,
+            background: `linear-gradient(90deg, ${healthColor}aa, ${healthColor})`,
+            transition: 'width 0.8s ease',
+          }} />
         </div>
       </div>
 
-      {/* ── TOP ROW: Live Status Cards ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {loadingOverview ? (
-          [...Array(4)].map((_, i) => <div key={i} className="skeleton h-28 rounded-xl" />)
+      {/* Zone B: 4 Stat Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+        {isLoading ? (
+          [...Array(4)].map((_, i) => (
+            <div key={i} style={{ height: 130, borderRadius: 14, background: 'rgba(255,255,255,0.04)' }} className="animate-pulse" />
+          ))
         ) : (
           <>
-            <StatusCard
-              icon={Activity}
-              iconBg="bg-accent-green/10"
-              iconColor="text-accent-green"
-              label="Active Campaigns"
-              value={activeCampaigns}
-              sub={`of ${overview?.totalCampaigns ?? 0} total`}
-              pulse={activeCampaigns > 0}
+            <StatCard
+              icon={<AdsIcon />}
+              label="Ads Created"
+              value={stats.adsCreated?.value ?? 0}
+              delta={stats.adsCreated?.delta}
+              deltaLabel="this week"
+              accentColor="#8b5cf6"
             />
-            <StatusCard
-              icon={DollarSign}
-              iconBg="bg-accent-blue/10"
-              iconColor="text-accent-blue"
-              label="Spend Today (est.)"
-              value={`$${Number(todaySpend).toLocaleString()}`}
-              sub={`$${(overview?.totalAdSpend ?? 0).toLocaleString()} lifetime`}
+            <StatCard
+              icon={<KeywordsIcon />}
+              label="Keywords"
+              value={stats.keywords?.value ?? 0}
+              delta={stats.keywords?.delta}
+              deltaLabel="rising"
+              accentColor="#10b981"
             />
-            <StatusCard
-              icon={AlertTriangle}
-              iconBg={alertCount > 0 ? 'bg-red-500/10' : 'bg-bg-card'}
-              iconColor={alertCount > 0 ? 'text-red-400' : 'text-text-secondary'}
+            <StatCard
+              icon={<CompetitorsIcon />}
+              label="Competitors"
+              value={stats.competitors?.value ?? 0}
+              delta={stats.competitors?.delta}
+              deltaLabel="new"
+              accentColor="#f59e0b"
+            />
+            <StatCard
+              icon={<AlertsIcon />}
               label="Active Alerts"
-              value={alertCount}
-              sub={alertCount > 0 ? 'Anomalies detected' : 'All systems normal'}
-              pulse={alertCount > 0}
-            />
-            <StatusCard
-              icon={Shield}
-              iconBg="bg-accent-purple/10"
-              iconColor="text-accent-purple"
-              label="SEO Score"
-              value={seoScore !== null ? seoScore : '—'}
-              sub={seoScore !== null ? `Grade ${latestAudit?.grade ?? '?'}` : 'No audit yet'}
+              value={stats.alerts?.value ?? 0}
+              urgent={stats.alerts?.urgent}
+              accentColor="#ef4444"
             />
           </>
         )}
       </div>
 
-      {/* ── MIDDLE ROW: Quick Actions ───────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <ActionCard
-          icon={Shield}
-          iconBg="bg-cyan-500/10"
-          iconColor="text-cyan-400"
-          title="Beacon — SEO Audit"
-          desc="Crawl your site, detect issues, and get an AI-powered executive summary."
-          to="/seo"
-        />
-        <ActionCard
-          icon={Wand2}
-          iconBg="bg-orange-500/10"
-          iconColor="text-orange-400"
-          title="Forge — Generate Ads"
-          desc="AI generates high-converting ad copy for Meta, Google, and more."
-          to="/ads"
-        />
-        <ActionCard
-          icon={ShieldAlert}
-          iconBg="bg-red-500/10"
-          iconColor="text-red-400"
-          title="Sentinel — Budget Guard"
-          desc="Automatically pause campaigns that exceed CPA or ROAS thresholds."
-          to="/budget-ai"
-        />
-      </div>
-
-      {/* ── BOTTOM ROW: Activity + Campaign Health ──────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-
-        {/* Recent Activity (60%) */}
-        <div className="lg:col-span-3 card p-0 overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <Bell className="w-4 h-4 text-text-secondary" />
-              <h2 className="text-sm font-semibold text-text-primary">Recent Activity</h2>
-            </div>
-            <Link to="/notifications" className="text-xs text-accent-blue hover:underline">View all →</Link>
-          </div>
-
-          <div className="divide-y divide-border">
-            {notifications.length === 0 ? (
-              <div className="py-10 text-center text-text-secondary text-sm">
-                <Bell className="w-7 h-7 mx-auto mb-2 opacity-30" />
-                No activity yet
+      {/* Zone C: Action Items + Activity Feed */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* Left: Action Items */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 11 }}>
+                TODAY'S ACTIONS
               </div>
-            ) : (
-              notifications.slice(0, 8).map((n) => (
-                <div
-                  key={n.id}
-                  className={`flex items-start gap-3 px-5 py-3.5 hover:bg-white/2 transition-colors ${n.status === 'pending' ? 'bg-white/2' : ''}`}
-                >
-                  {n.status === 'pending' && (
-                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-accent-blue shrink-0" />
-                  )}
-                  <div className={n.status !== 'pending' ? 'ml-4' : ''}>
-                    <p className="text-xs text-text-primary leading-snug">{n.message}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {n.type && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${NOTIF_TYPE_COLORS[n.type] ?? 'bg-border text-text-secondary'}`}>
-                          {n.type.replace(/_/g, ' ')}
-                        </span>
-                      )}
-                      <span className="text-[10px] text-text-secondary">{timeAgo(n.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+                Recommended next steps
+              </div>
+            </div>
           </div>
+          {isLoading ? (
+            [...Array(2)].map((_, i) => (
+              <div key={i} style={{ height: 90, borderRadius: 12, background: 'rgba(255,255,255,0.04)', marginBottom: 10 }} />
+            ))
+          ) : actionItems.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>✓</div>
+              All caught up — no actions needed
+            </div>
+          ) : (
+            actionItems.map((item, i) => <ActionItem key={i} item={item} />)
+          )}
         </div>
 
-        {/* Campaign Health (40%) */}
-        <div className="lg:col-span-2 card p-0 overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-text-secondary" />
-              <h2 className="text-sm font-semibold text-text-primary">Campaign Health</h2>
+        {/* Right: Activity Feed + Keyword Trends */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
+            RECENT ACTIVITY
+          </div>
+          {feed.length === 0 ? (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', padding: '20px 0' }}>
+              No recent activity yet. Generate your first ad to get started.
             </div>
-            <Link to="/campaigns" className="text-xs text-accent-blue hover:underline">Manage →</Link>
-          </div>
+          ) : (
+            feed.slice(0, 4).map((item, i) => <FeedItem key={i} item={item} />)
+          )}
 
-          <div className="divide-y divide-border">
-            {loadingCampaigns ? (
-              <div className="p-5 space-y-3">
-                {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-10 rounded-lg" />)}
+          {trends.length > 0 && (
+            <>
+              <div style={{
+                fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.85)',
+                textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 20, marginBottom: 10,
+              }}>
+                KEYWORD TRENDS
               </div>
-            ) : (campaigns ?? []).length === 0 ? (
-              <div className="py-10 text-center text-text-secondary text-sm">
-                <Zap className="w-7 h-7 mx-auto mb-2 opacity-30" />
-                No campaigns yet
+              {trends.map((kw, i) => <TrendRow key={i} kw={kw} />)}
+            </>
+          )}
+
+          {trends.length === 0 && feed.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                QUICK LINKS
               </div>
-            ) : (
-              (campaigns ?? []).slice(0, 5).map((c) => (
-                <div
-                  key={c.id}
-                  className="flex items-center gap-3 px-5 py-3.5 hover:bg-white/2 transition-colors cursor-pointer"
-                  onClick={() => navigate('/campaigns')}
+              {[
+                { label: 'Research keywords', path: '/research' },
+                { label: 'Generate ad copy', path: '/ads' },
+                { label: 'Analyze competitor', path: '/research' },
+              ].map((l, i) => (
+                <button
+                  key={i}
+                  onClick={() => navigate(l.path)}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    background: 'transparent', border: 'none',
+                    fontSize: 12, color: '#8b5cf6', cursor: 'pointer',
+                    padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                  }}
                 >
-                  <div className="shrink-0">
-                    {STATUS_ICON[c.status] ?? STATUS_ICON.draft}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-text-primary truncate">{c.name}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <Badge status={c.platform} />
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-text-secondary">
-                      ${Number(c.budget ?? 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {(campaigns ?? []).length > 5 && (
-            <div className="px-5 py-3 border-t border-border">
-              <button onClick={() => navigate('/campaigns')} className="text-xs text-accent-blue hover:underline">
-                +{campaigns.length - 5} more campaigns
-              </button>
+                  {l.label} →
+                </button>
+              ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Demo mode notice */}
+      {metrics?.demoMode && (
+        <div style={{
+          background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+          borderRadius: 8, padding: '10px 16px', fontSize: 12, color: 'rgba(245,158,11,0.9)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Showing estimated data. Connect your ad account to see real metrics.
+          <Link to="/settings" style={{ color: '#f59e0b', marginLeft: 4 }}>Connect now</Link>
+        </div>
+      )}
     </div>
   );
 }
