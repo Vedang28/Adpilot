@@ -42,6 +42,11 @@
     @apply w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-blue transition-colors text-sm;
   }
 
+  /* Shorthand alias used across modals and forms */
+  .input {
+    @apply bg-bg-secondary border border-border rounded-lg px-3 py-2 text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-blue transition-colors text-sm;
+  }
+
   /* Primary button — always blue→purple gradient */
   .btn-primary {
     @apply bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500

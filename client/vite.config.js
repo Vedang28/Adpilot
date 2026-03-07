@@ -6,6 +6,7 @@ export default defineConfig({
   base: '/',
   server: {
     port: 5173,
+    strictPort: true, // Fail fast if 5173 is taken — never silently drift to another port
     proxy: {
       '/api': {
         target: 'http://localhost:3000',

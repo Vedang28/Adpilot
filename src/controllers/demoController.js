@@ -62,13 +62,16 @@ exports.demoLogin = async (req, res, next) => {
 
     if (!demoTeam) {
       logger.info('Creating demo team for first-time demo login');
-      const hashedPw = await bcrypt.hash(`demo-${Date.now()}`, 10);
 
       // Create team first (User.teamId is required — cannot create user before team)
       demoTeam = await prisma.team.create({
         data: { name: 'AdPilot Live Demo', slug: 'adpilot-demo-public', plan: 'pro' },
       });
+    }
 
+    // Ensure team has at least one user (handles orphaned team from partial creation)
+    if (!demoTeam.users || demoTeam.users.length === 0) {
+      const hashedPw = await bcrypt.hash(`demo-${Date.now()}`, 10);
       await prisma.user.create({
         data: {
           name:    'Demo User',
@@ -113,7 +116,6 @@ exports.demoLogin = async (req, res, next) => {
 
     // Seed notifications if missing
     const demoUser = demoTeam.users[0];
-    if (!demoUser) throw new Error('Demo team has no users — data integrity error');
 
     const notifCount = await prisma.notification.count({ where: { teamId: demoTeam.id } });
     if (notifCount === 0) {
