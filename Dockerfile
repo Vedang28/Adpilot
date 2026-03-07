@@ -74,10 +74,11 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Install backend deps (no devDeps in production)
+# prisma CLI is in dependencies so it is available for generate and db push
 RUN npm ci --omit=dev
 
-# Generate Prisma client
-RUN npx prisma generate
+# Generate Prisma client (uses the CLI installed above)
+RUN node_modules/.bin/prisma generate
 
 # Copy backend source
 COPY src ./src/
@@ -91,4 +92,5 @@ ENV NODE_ENV=production
 EXPOSE ${PORT}
 
 # Sync schema + start server
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node src/server.js"]
+# prisma is in production dependencies so the CLI is available without npx download
+CMD ["sh", "-c", "node_modules/.bin/prisma db push --accept-data-loss && node src/server.js"]
