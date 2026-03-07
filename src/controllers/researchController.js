@@ -71,6 +71,8 @@ exports.hijackAnalysis = async (req, res, next) => {
     if (!domain) throw AppError.badRequest('domain query param is required');
 
     const analysis = await competitorHijackService.analyzeCompetitor(domain, req.user.teamId);
+    // Persist topKeywords back to competitor record (enables Gaps tab)
+    await _saveCompetitorKeywords(analysis, req.user.teamId);
     return success(res, analysis);
   } catch (err) {
     next(err);
@@ -85,6 +87,32 @@ exports.analyzeUrl = async (req, res, next) => {
 
     const clean = url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].trim();
     const analysis = await competitorHijackService.analyzeCompetitor(clean, req.user.teamId);
+    // Persist topKeywords back to competitor record (enables Gaps tab)
+    await _saveCompetitorKeywords(analysis, req.user.teamId);
     return success(res, analysis);
   } catch (err) { next(err); }
 };
+
+/**
+ * After a competitor analysis, update the stored Competitor record with
+ * topKeywords from the crawl so CompetitorGapService can use them.
+ */
+async function _saveCompetitorKeywords(analysis, teamId) {
+  if (!analysis || !analysis.domain) return;
+  const topKws = (analysis.topKeywords || []).slice(0, 20).map(kw =>
+    typeof kw === 'string' ? { keyword: kw, rank: 10 } : { keyword: kw.word || kw.keyword || '', rank: 10 }
+  ).filter(k => k.keyword);
+  if (!topKws.length) return;
+
+  try {
+    await prisma.competitor.updateMany({
+      where: { teamId, domain: analysis.domain },
+      data:  {
+        topKeywords:   topKws,
+        lastScrapedAt: new Date(),
+      },
+    });
+  } catch (_) {
+    // Non-fatal — gaps just won't update
+  }
+}

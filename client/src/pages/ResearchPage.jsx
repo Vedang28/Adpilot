@@ -207,23 +207,24 @@ function MarketResearchSection() {
     try {
       const res = await api.post('/competitors/analyze', { url: url.trim() });
       const data = res.data.data;
-      // Normalize the real API response into display shape
-      const lp = data.landingPageData || {};
+      // API returns flat structure (title, ctas, topKeywords etc at top level — not nested)
       setResult({
         domain:        data.domain,
-        crawlFailed:   data.crawlFailed,
-        title:         lp.title || data.domain,
-        description:   lp.description || '',
-        topKeywords:   (lp.topKeywords || []).slice(0, 8).map(k => (typeof k === 'string' ? k : k.word || k.keyword || '')).filter(Boolean),
-        headlines:     (lp.headings || []).slice(0, 4).map(h => h.text || h).filter(Boolean),
-        techStack:     lp.techStack || [],
-        ctas:          (lp.ctas || []).slice(0, 4),
-        aiInsights:    data.aiInsights || null,
-        messagingAngles: data.aiInsights?.messagingAngles || [],
-        weaknesses:    data.aiInsights?.weaknesses || [],
-        keywordGaps:   (data.keywordGaps || data.aiInsights?.keywordGaps || []).slice(0, 5),
+        crawlFailed:   data.crawlFailed || !data.isReal,
+        isReal:        data.isReal,
+        title:         data.title || data.domain,
+        description:   data.description || '',
+        topKeywords:   (data.topKeywords || []).slice(0, 8).map(k => (typeof k === 'string' ? k : k.word || k.keyword || '')).filter(Boolean),
+        headlines:     (data.headings || []).slice(0, 6).map(h => (typeof h === 'string' ? h : h.text || '')).filter(Boolean),
+        techStack:     data.techStack || [],
+        ctas:          (data.ctas || []).slice(0, 6),
+        messagingAngles: data.messagingAngles || [],
+        weaknesses:    data.weaknesses || [],
+        strengths:     data.strengths  || [],
+        keywordGaps:   (data.keywordGaps || []).slice(0, 5),
+        hasAiInsights: data.hasAiInsights || false,
       });
-      toast.success(data.crawlFailed ? 'Analysis complete (demo data — site blocked crawl)' : 'Market analysis complete');
+      toast.success((!data.isReal) ? 'Analysis complete (demo data — site blocked crawl)' : 'Market analysis complete');
     } catch (err) {
       toast.error(err.response?.data?.error?.message || 'Analysis failed');
     } finally {
@@ -264,28 +265,31 @@ function MarketResearchSection() {
               Demo data shown — site blocked automated crawl. Add as competitor for ongoing tracking.
             </div>
           )}
-          <div className="grid sm:grid-cols-2 gap-4">
-            {/* Site overview */}
-            <div className="card sm:col-span-2">
-              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">{result.domain}</p>
-              <p className="text-sm text-text-primary font-medium">{result.title}</p>
-              {result.description && <p className="text-xs text-text-secondary mt-1 line-clamp-2">{result.description}</p>}
-              {result.techStack.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {result.techStack.slice(0,6).map(t => (
-                    <span key={t} className="text-xs px-2 py-0.5 rounded bg-bg-surface border border-border text-text-secondary">{t}</span>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            {/* Top keywords */}
-            {result.topKeywords.length > 0 && (
+          {/* Site overview */}
+          <div className="card">
+            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">{result.domain}</p>
+            <p className="text-sm text-text-primary font-medium">{result.title}</p>
+            {result.description && <p className="text-xs text-text-secondary mt-1 line-clamp-2">{result.description}</p>}
+            {result.techStack.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {result.techStack.slice(0, 6).map(t => (
+                  <span key={t} className="text-xs px-2 py-0.5 rounded bg-bg-surface border border-border text-text-secondary">{t}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Their headlines / page structure */}
+            {result.headlines.length > 0 && (
               <div className="card">
-                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Top Keywords</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {result.topKeywords.map((kw) => (
-                    <span key={kw} className="text-xs px-2.5 py-1 rounded-full border border-border text-text-secondary">{kw}</span>
+                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Content Strategy (Their Headlines)</p>
+                <div className="space-y-1.5">
+                  {result.headlines.map((h, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs text-text-secondary leading-relaxed">
+                      <ChevronRight className="w-3 h-3 text-accent-blue shrink-0 mt-0.5" />{h}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -294,7 +298,7 @@ function MarketResearchSection() {
             {/* CTAs */}
             {result.ctas.length > 0 && (
               <div className="card">
-                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Their CTAs</p>
+                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Their Conversion CTAs</p>
                 <div className="space-y-1.5">
                   {result.ctas.map((c, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm text-text-secondary">
@@ -305,34 +309,61 @@ function MarketResearchSection() {
               </div>
             )}
 
-            {/* AI insights */}
-            {result.aiInsights && (
-              <>
-                {result.messagingAngles.length > 0 && (
-                  <div className="card">
-                    <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Messaging Angles</p>
-                    <div className="space-y-1.5">
-                      {result.messagingAngles.map((a, i) => (
-                        <div key={i} className="flex items-start gap-2 text-sm text-text-secondary">
-                          <Sparkles className="w-3.5 h-3.5 text-purple-400 mt-0.5 shrink-0" />{a}
-                        </div>
-                      ))}
+            {/* Top keywords */}
+            {result.topKeywords.length > 0 && (
+              <div className="card">
+                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Keywords They Target</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {result.topKeywords.map((kw) => (
+                    <span key={kw} className="text-xs px-2.5 py-1 rounded-full border border-border text-text-secondary">{kw}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Messaging angles */}
+            {result.messagingAngles.length > 0 && (
+              <div className="card">
+                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Messaging Angles</p>
+                <div className="space-y-1.5">
+                  {result.messagingAngles.map((a, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm text-text-secondary">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400 mt-0.5 shrink-0" />{a}
                     </div>
-                  </div>
-                )}
-                {result.weaknesses.length > 0 && (
-                  <div className="card">
-                    <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Weaknesses to Exploit</p>
-                    <div className="space-y-1.5">
-                      {result.weaknesses.map((w, i) => (
-                        <div key={i} className="flex items-start gap-2 text-sm text-text-secondary">
-                          <Target className="w-3.5 h-3.5 text-accent-green mt-0.5 shrink-0" />{w}
-                        </div>
-                      ))}
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Weaknesses to exploit */}
+            {result.weaknesses.length > 0 && (
+              <div className="card">
+                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">
+                  Weaknesses to Exploit
+                  {result.hasAiInsights && <span className="ml-2 text-accent-purple font-normal normal-case">(AI)</span>}
+                </p>
+                <div className="space-y-1.5">
+                  {result.weaknesses.map((w, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm text-text-secondary">
+                      <Target className="w-3.5 h-3.5 text-accent-green mt-0.5 shrink-0" />{w}
                     </div>
-                  </div>
-                )}
-              </>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Keyword gaps */}
+            {result.keywordGaps.length > 0 && (
+              <div className="card sm:col-span-2">
+                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Keyword Gaps</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {result.keywordGaps.map((g, i) => (
+                    <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-accent-purple/10 border border-accent-purple/20 text-accent-purple">
+                      {typeof g === 'string' ? g : g.keyword}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -563,7 +594,7 @@ function KeywordResearchSection() {
 
   const { data: tracked } = useQuery({
     queryKey: ['seo', 'keywords'],
-    queryFn: () => api.get('/seo/keywords').then(r => r.data.data?.keywords ?? r.data.data ?? []),
+    queryFn: () => api.get('/seo/keywords').then(r => r.data.data?.keywords ?? r.data.data?.items ?? (Array.isArray(r.data.data) ? r.data.data : [])),
   });
 
   const addKw = useMutation({

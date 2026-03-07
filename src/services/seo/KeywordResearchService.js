@@ -48,26 +48,47 @@ async function ddgSuggest(q) {
 }
 
 async function googleTrends(q) {
-  try {
-    const googleTrendsApi = require('google-trends-api');
+  const googleTrendsApi = require('google-trends-api');
+
+  // Google Trends can fail for very short or single-word queries — retry helpers
+  async function _fetch(keyword) {
     const raw = await withTimeout(
-      googleTrendsApi.interestOverTime({ keyword: q, startTime: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }),
-      10000
+      googleTrendsApi.interestOverTime({
+        keyword,
+        startTime: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+      }),
+      12000
     );
-    const parsed = JSON.parse(raw);
+    const parsed   = JSON.parse(raw);
     const timeline = parsed?.default?.timelineData || [];
-    const values   = timeline.map(p => p.value?.[0] || 0);
+    if (!timeline.length) return null;
+    const values = timeline.map(p => p.value?.[0] || 0);
     return {
-      averageInterest: values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0,
-      peakInterest:    values.length ? Math.max(...values) : 0,
+      averageInterest: Math.round(values.reduce((a, b) => a + b, 0) / values.length),
+      peakInterest:    Math.max(...values),
       trend:           values.length >= 2
         ? (values[values.length - 1] > values[0] ? 'rising' : 'declining')
         : 'stable',
-      dataPoints:      timeline.slice(-12).map(p => ({
+      dataPoints: timeline.slice(-12).map(p => ({
         date:  p.formattedTime,
         value: p.value?.[0] || 0,
       })),
     };
+  }
+
+  try {
+    // First attempt: exact query
+    const result = await _fetch(q);
+    if (result) return result;
+
+    // Retry: append a common word to make single-word queries more specific
+    // (Google Trends sometimes returns empty for very generic single keywords)
+    if (!q.includes(' ')) {
+      const result2 = await _fetch(`${q} online`);
+      if (result2) return result2;
+    }
+
+    return null;
   } catch (err) {
     logger.debug('KeywordResearchService: trends failed', { err: err.message });
     return null;
@@ -143,4 +164,4 @@ async function research(q) {
   };
 }
 
-module.exports = { research };
+module.exports = { research, getTrends: googleTrends };

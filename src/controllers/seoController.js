@@ -49,6 +49,28 @@ exports.triggerAudit = async (req, res, next) => {
       );
     }
 
+    // ── 24-hour completed audit cache ───────────────────────────────────────
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recentAudit = await prisma.seoAudit.findFirst({
+      where: {
+        teamId,
+        url,
+        status:    { in: ['completed', 'complete'] },
+        createdAt: { gte: oneDayAgo },
+      },
+      orderBy: { createdAt: 'desc' },
+      select:  { id: true, createdAt: true },
+    });
+
+    if (recentAudit && !req.query.force) {
+      return success(res, {
+        auditId:   recentAudit.id,
+        cached:    true,
+        cachedAt:  recentAudit.createdAt,
+        message:   'Audit completed within the last 24 hours. Use ?force=1 to re-audit.',
+      });
+    }
+
     // ── Pre-create the record so we return auditId before the job runs ──────
     const featureFlags = require('../config/featureFlags');
 
@@ -122,9 +144,9 @@ exports.getAudit = async (req, res, next) => {
  */
 exports.getAudits = async (req, res, next) => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit } = parsePagination(req.query);
     const { items, total } = await seoAuditService.getAudits(req.user.teamId, { page, limit });
-    return paginated(res, items, total, page, limit);
+    return success(res, { audits: items, total });
   } catch (err) { next(err); }
 };
 
@@ -363,7 +385,8 @@ exports.getKeywords = async (req, res, next) => {
   try {
     const { page, limit } = parsePagination(req.query);
     const { items, total } = await keywordService.getKeywords(req.user.teamId, { page, limit });
-    return paginated(res, items, total, page, limit);
+    // Return as flat array with total so frontend can iterate directly
+    return success(res, { keywords: items, total });
   } catch (err) { next(err); }
 };
 
@@ -377,8 +400,13 @@ exports.getOpportunities = async (req, res, next) => {
 
 exports.syncKeywords = async (req, res, next) => {
   try {
-    const job = await queues.keywordSync.add({ teamId: req.user.teamId });
-    return success(res, { jobId: job.id, message: 'Keyword sync queued' });
+    // Run synchronously so the UI sees results immediately on refresh
+    const updates = await keywordService.syncRanks(req.user.teamId);
+    return success(res, {
+      synced:  updates.length,
+      updates: updates.map(u => ({ keyword: u.keyword, newRank: u.newRank, volume: u.volume, source: u.source })),
+      message: `Synced ${updates.length} keyword(s)`,
+    });
   } catch (err) { next(err); }
 };
 
@@ -486,7 +514,7 @@ exports.getBriefs = async (req, res, next) => {
   try {
     const { page, limit } = parsePagination(req.query);
     const { items, total } = await contentBriefService.getBriefs(req.user.teamId, { page, limit });
-    return paginated(res, items, total, page, limit);
+    return success(res, { briefs: items, total });
   } catch (err) { next(err); }
 };
 
@@ -516,6 +544,39 @@ exports.researchKeyword = async (req, res, next) => {
       60 * 120  // 2-hour cache
     );
 
-    return success(res, { ...data, _cached: cached });
+    // Normalize the nested service shape into the flat shape the frontend expects
+    const t = data.trends  || {};
+    const i = data.insights || {};
+    const sourceLabels = Object.entries(data.sources || {})
+      .filter(([, v]) => v)
+      .map(([k]) => ({ googleAutocomplete: 'Google Autocomplete', ddgSuggest: 'DuckDuckGo', googleTrends: 'Google Trends', aiInsights: 'AI Insights' }[k] || k))
+      .join(' + ') || 'Google Autocomplete';
+
+    const normalized = {
+      keyword:          data.keyword,
+      found:            (data.suggestions || []).length > 0 || t.averageInterest > 0,
+      // Trend fields (flattened)
+      trend:            t.trend === 'declining' ? 'falling' : (t.trend || 'stable'),
+      trendScore:       t.averageInterest || 0,
+      trendAvg:         t.averageInterest || 0,
+      trendHistory:     (t.dataPoints || []).map(p => ({ label: p.date, score: p.value })),
+      // AI insight fields (flattened)
+      difficulty:       i.difficulty || null,
+      intent:           i.intent     || null,
+      estimatedCpc:     i.estimatedCpc || null,
+      bestPlatform:     i.intent === 'transactional' ? 'Google' : i.intent === 'commercial' ? 'Meta' : null,
+      aiInsight:        i.summary   || null,
+      targetedAngles:   i.targetedAngles   || [],
+      negativeKeywords: i.negativeKeywords || [],
+      // Suggestions
+      suggestions:      data.suggestions || [],
+      relatedKeywords:  [],
+      // Meta
+      source:           sourceLabels,
+      sources:          data.sources,
+      _cached:          cached,
+    };
+
+    return success(res, normalized);
   } catch (err) { next(err); }
 };

@@ -1132,7 +1132,7 @@ function AuditsTab({ initialUrl = '', autoRun = false }) {
 
   const { data: audits, isLoading, error } = useQuery({
     queryKey: ['seo', 'audits'],
-    queryFn:  () => api.get('/seo/audits').then((r) => r.data.data),
+    queryFn:  () => api.get('/seo/audits').then((r) => r.data.data?.audits ?? r.data.data?.items ?? (Array.isArray(r.data.data) ? r.data.data : [])),
   });
 
   const auditMutation = useMutation({
@@ -1573,18 +1573,21 @@ function KeywordsTab() {
 
   const { data: keywords, isLoading, error } = useQuery({
     queryKey: ['seo', 'keywords'],
-    queryFn:  () => api.get('/seo/keywords').then((r) => r.data.data),
+    queryFn:  () => api.get('/seo/keywords').then((r) => r.data.data?.keywords ?? r.data.data?.items ?? (Array.isArray(r.data.data) ? r.data.data : [])),
   });
 
   // Fetch audit list so the discover modal can match URL → auditId
   const { data: audits } = useQuery({
     queryKey: ['seo', 'audits'],
-    queryFn:  () => api.get('/seo/audits').then((r) => r.data.data),
+    queryFn:  () => api.get('/seo/audits').then((r) => r.data.data?.audits ?? r.data.data?.items ?? (Array.isArray(r.data.data) ? r.data.data : [])),
   });
 
   const syncMutation = useMutation({
     mutationFn: () => api.post('/seo/keywords/sync'),
-    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['seo', 'keywords'] }),
+    onSuccess:  () => {
+      queryClient.invalidateQueries({ queryKey: ['seo', 'keywords'] });
+      queryClient.invalidateQueries({ queryKey: ['seo', 'gaps'] });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -1597,7 +1600,7 @@ function KeywordsTab() {
       {/* Action bar */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          {syncMutation.isSuccess && <span className="text-accent-green text-xs">Synced!</span>}
+          {syncMutation.isSuccess && <span className="text-accent-green text-xs">Synced {syncMutation.data?.data?.data?.synced ?? ''} keywords</span>}
           {syncMutation.error && <span className="text-red-400 text-xs">Sync failed.</span>}
         </div>
         <div className="flex items-center gap-2">
@@ -1669,12 +1672,14 @@ function KeywordsTab() {
                     )}
                   </td>
                   <td className="px-5 py-3.5 text-text-secondary whitespace-nowrap">
-                    {Number(kw.volume ?? kw.searchVolume ?? 0).toLocaleString()}
+                    {(() => { const v = kw.volume ?? kw.searchVolume; return (v && v > 0) ? Number(v).toLocaleString() : '—'; })()}
                   </td>
-                  <td className="px-5 py-3.5"><DifficultyBar value={kw.difficulty} /></td>
-                  <td className="px-5 py-3.5 text-text-secondary">{kw.currentRank ?? '—'}</td>
-                  <td className="px-5 py-3.5"><RankChange change={kw.change ?? 0} /></td>
-                  <td className="px-5 py-3.5"><OpportunityBadge score={kw.opportunityScore} /></td>
+                  <td className="px-5 py-3.5"><DifficultyBar value={kw.difficulty || 0} /></td>
+                  <td className="px-5 py-3.5 text-text-secondary">{kw.currentRank != null ? kw.currentRank : '—'}</td>
+                  <td className="px-5 py-3.5">
+                    {(kw.previousRank != null || kw.currentRank != null) ? <RankChange change={kw.change ?? 0} /> : <span className="text-text-secondary text-xs">—</span>}
+                  </td>
+                  <td className="px-5 py-3.5"><OpportunityBadge score={kw.opportunityScore || 0} /></td>
                   {/* Delete button — group-hover reveal */}
                   <td className="px-3 py-3.5 w-10">
                     <div className="relative w-6 h-6">
@@ -1775,7 +1780,7 @@ function ContentBriefs() {
 
   const { data: briefs, isLoading, error } = useQuery({
     queryKey: ['seo', 'briefs'],
-    queryFn:  () => api.get('/seo/briefs').then((r) => r.data.data),
+    queryFn:  () => api.get('/seo/briefs').then((r) => r.data.data?.briefs ?? r.data.data?.items ?? (Array.isArray(r.data.data) ? r.data.data : [])),
   });
 
   const deleteMutation = useMutation({

@@ -5,6 +5,7 @@ const { getRedis }      = require('../../config/redis');
 const MetricsCalculator = require('../analytics/MetricsCalculator');
 const logger            = require('../../config/logger');
 const serpService       = require('../keywords/SerpService');
+const { getTrends }     = require('./KeywordResearchService');
 
 /**
  * Keyword Opportunity Score formula:
@@ -20,11 +21,14 @@ class KeywordTrackingService {
    * Calculate opportunity score for a single keyword.
    */
   static opportunityScore({ searchVolume, difficulty, currentRank }) {
+    if (!searchVolume || searchVolume <= 0) return 0;
     const rank             = currentRank || 100;
     const ctrPotential     = rank <= 10 ? (CTR_CURVE[rank] || 0.015) : 0.01;
-    const competitionFactor = 1 + (difficulty / 100) * 2; // 1..3
-    const score = (searchVolume * ctrPotential) / (difficulty * competitionFactor);
-    return parseFloat(score.toFixed(4));
+    const diff             = difficulty > 0 ? difficulty : 30; // default medium if unknown
+    const competitionFactor = 1 + (diff / 100) * 2; // 1..3
+    const score = (searchVolume * ctrPotential) / (diff * competitionFactor);
+    const normalized = Math.min(100, Math.round(score * 1000));
+    return isFinite(normalized) ? normalized : 0;
   }
 
   /**
@@ -101,25 +105,61 @@ class KeywordTrackingService {
         rankSource = serpResult.source || 'serp';
       }
 
-      // Last resort: ±3 rank drift simulation
+      // ── Enrich volume + difficulty from Google Trends (free, no key) ──────
+      // Only fetch trends if volume is missing (0) to avoid re-fetching on every sync
+      let volumeUpdate = {};
+      if (!kw.searchVolume || kw.searchVolume === 0) {
+        try {
+          const trendsData = await getTrends(kw.keyword);
+          if (trendsData && trendsData.averageInterest > 0) {
+            // Store the 0-100 trend interest as a volume proxy
+            const estimatedVolume = trendsData.averageInterest;
+            // Estimate difficulty: high trend = high competition
+            const estimatedDifficulty = trendsData.averageInterest >= 70 ? 75
+              : trendsData.averageInterest >= 40 ? 45
+              : 25;
+            volumeUpdate = {
+              searchVolume: estimatedVolume,
+              difficulty:   estimatedDifficulty,
+            };
+            logger.debug('KeywordTrackingService: trends volume populated', {
+              keyword: kw.keyword,
+              volume:  estimatedVolume,
+              difficulty: estimatedDifficulty,
+            });
+          }
+        } catch (tErr) {
+          logger.debug('KeywordTrackingService: trends fetch failed during sync', { keyword: kw.keyword, err: tErr.message });
+        }
+      }
+
+      // Last resort: keep existing rank if SERP unavailable (no random drift)
       if (!isReal) {
-        const drift = Math.round((Math.random() - 0.5) * 6);
-        newRank     = kw.currentRank ? Math.max(1, kw.currentRank + drift) : null;
-        rankSource  = 'mock';
+        newRank    = kw.currentRank ?? null;
+        rankSource = 'cached';
       }
 
       // Atomically update keyword + append rank history snapshot
       await prisma.$transaction([
         prisma.keyword.update({
           where: { id: kw.id },
-          data:  { previousRank: kw.currentRank, currentRank: newRank, lastCheckedAt: now },
+          data:  {
+            previousRank:  kw.currentRank,
+            currentRank:   newRank,
+            lastCheckedAt: now,
+            ...volumeUpdate,
+          },
         }),
         ...(newRank !== null
           ? [prisma.keywordRank.create({ data: { keywordId: kw.id, teamId, rank: newRank, recordedAt: now } })]
           : []),
       ]);
 
-      updates.push({ id: kw.id, keyword: kw.keyword, newRank, isReal, source: rankSource });
+      updates.push({
+        id: kw.id, keyword: kw.keyword, newRank, isReal,
+        source: rankSource,
+        volume: volumeUpdate.searchVolume ?? kw.searchVolume,
+      });
     }
 
     logger.info('Keyword ranks synced', { teamId, count: updates.length });

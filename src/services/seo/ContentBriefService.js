@@ -210,6 +210,7 @@ Return ONLY the JSON object, no markdown, no extra text.`;
       const result = await anthropic.generateContentBrief({
         keyword:         targetKeyword,
         relatedKeywords: relatedKeywords.map(k => k.keyword),
+        instructions:    'Make every section heading specific and actionable. Avoid generic headings like "What is X?" or "Why X Matters". Each heading should promise concrete value.',
       });
       if (!result || !result.title || !Array.isArray(result.outline)) return null;
       if (!SEARCH_INTENTS.includes(result.searchIntent)) result.searchIntent = 'informational';
@@ -288,27 +289,51 @@ Return ONLY the JSON object, no markdown, no extra text.`;
 
   _generateTitle(keyword) {
     const yr = new Date().getFullYear();
+    const kCap = keyword.charAt(0).toUpperCase() + keyword.slice(1);
     const templates = [
-      `The Complete Guide to ${keyword} (${yr})`,
-      `${keyword}: Everything You Need to Know`,
-      `How to Master ${keyword}: A Step-by-Step Guide`,
-      `${keyword} Explained: A Comprehensive Overview`,
+      `${kCap}: The ${yr} Practical Guide (With Real Examples)`,
+      `How to Get Results With ${kCap} — Actionable ${yr} Playbook`,
+      `${kCap} Explained: What Actually Works in ${yr}`,
+      `The ${yr} ${kCap} Handbook — From Basics to Advanced`,
     ];
-    return templates[Math.floor(Math.random() * templates.length)];
+    // deterministic pick based on keyword hash so it doesn't change on re-render
+    const idx = keyword.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % templates.length;
+    return templates[idx];
   }
 
   _generateOutline(keyword, semanticTerms) {
-    const topTerms = semanticTerms.slice(0, 6).map((t) => t.term);
+    const yr = new Date().getFullYear();
+    const kCap = keyword.charAt(0).toUpperCase() + keyword.slice(1);
+    const topTerms = semanticTerms.slice(0, 4).map((t) => t.term);
     return [
-      { heading: `What is ${keyword}?`,          subpoints: ['Definition and overview', 'Why it matters in 2025'] },
-      { heading: `Why ${keyword} Matters`,        subpoints: ['Key benefits', 'Business impact'] },
-      ...topTerms.slice(0, 3).map((term) => ({
-        heading:   `${keyword} and ${term.charAt(0).toUpperCase() + term.slice(1)}`,
-        subpoints: ['Core concepts', 'Practical applications'],
-      })),
-      { heading: `Best Practices for ${keyword}`, subpoints: ['Getting started', 'Advanced techniques', 'Tools and resources'] },
-      { heading: `Common ${keyword} Mistakes`,    subpoints: ['What to avoid', 'How to fix them'] },
-      { heading: 'Frequently Asked Questions',    subpoints: ['Top reader questions answered'] },
+      {
+        heading:   `The ${yr} State of ${kCap}: Key Trends You Can't Ignore`,
+        subpoints: [`Why ${keyword} is more competitive than ever`, 'What top performers do differently', 'Benchmarks and industry data'],
+      },
+      {
+        heading:   `${kCap} Fundamentals — What You Must Get Right First`,
+        subpoints: ['Core mechanics and how they work', 'Common beginner mistakes that kill results', 'The 80/20 rule: where to focus your effort'],
+      },
+      ...(topTerms.length >= 1 ? [{
+        heading:   `${kCap} + ${topTerms[0].charAt(0).toUpperCase() + topTerms[0].slice(1)}: The Winning Combination`,
+        subpoints: ['Why this combination outperforms alternatives', 'Step-by-step implementation', 'Real-world results and case studies'],
+      }] : []),
+      ...(topTerms.length >= 2 ? [{
+        heading:   `Advanced ${kCap}: ${topTerms[1].charAt(0).toUpperCase() + topTerms[1].slice(1)} Strategies That Scale`,
+        subpoints: ['Tactics used by top 10% performers', 'Tools and automation to multiply output', 'How to measure and optimize continuously'],
+      }] : []),
+      {
+        heading:   `${kCap} Toolkit: The Best Tools, Frameworks, and Resources (${yr})`,
+        subpoints: ['Free vs. paid options compared', 'What the data says about ROI', 'Setup guide for each recommendation'],
+      },
+      {
+        heading:   `Measuring ${kCap} Success: Metrics That Actually Matter`,
+        subpoints: ['KPIs worth tracking (and ones to ignore)', 'Dashboard setup and reporting cadence', 'When to pivot vs. double down'],
+      },
+      {
+        heading:   `Common ${kCap} Mistakes and How to Fix Them Fast`,
+        subpoints: ['Top 5 errors that waste budget and time', 'Diagnostic checklist', 'Quick wins to implement today'],
+      },
     ];
   }
 
