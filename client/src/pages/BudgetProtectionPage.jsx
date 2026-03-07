@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ShieldAlert, AlertTriangle, CheckCircle2, Plus, Trash2, ToggleLeft, ToggleRight,
-  Zap, Bell, TrendingDown, RefreshCw, X, Clock,
+  Zap, Bell, TrendingDown, RefreshCw, X, Clock, Download,
 } from 'lucide-react';
+import { exportToCSV } from '../lib/exportCsv';
 import api from '../lib/api';
 import { useToast } from '../components/ui/Toast';
 import Badge from '../components/ui/Badge';
@@ -260,7 +261,7 @@ export default function BudgetProtectionPage() {
 
       {/* ── Status Banner ──────────────────────────────────────────────── */}
       {scan && (
-        <div className={`border rounded-xl px-5 py-3.5 flex items-center gap-3 ${statusBanner.bg}`}>
+        <div className={`border rounded-xl px-5 py-3.5 flex items-center gap-3 ${statusBanner.bg} ${status === 'critical' ? 'sentinel-pulse' : ''}`}>
           <statusBanner.icon className={`w-5 h-5 ${statusBanner.iconClass}`} />
           <span className={`text-sm font-semibold ${statusBanner.textClass}`}>{statusBanner.text}</span>
           {scan.campaignsScanned != null && (
@@ -303,12 +304,33 @@ export default function BudgetProtectionPage() {
       <div className="card p-0 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-sm font-semibold text-text-primary">Alert Rules</h2>
-          <button
-            onClick={() => setShowModal(true)}
-            className="btn-primary text-xs flex items-center gap-1.5 px-3 py-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" />Add Rule
-          </button>
+          <div className="flex items-center gap-2">
+            {rules.length > 0 && (
+              <button
+                onClick={() => exportToCSV(
+                  rules.map(r => ({
+                    campaign: r.campaign?.name ?? 'Unknown',
+                    type: ALERT_TYPE_LABELS[r.alertType] ?? r.alertType,
+                    threshold: r.threshold,
+                    action: ACTION_LABELS[r.action] ?? r.action,
+                    active: r.isActive ? 'Yes' : 'No',
+                    triggered: r.triggeredAt ? new Date(r.triggeredAt).toLocaleDateString() : 'Never',
+                  })),
+                  ['campaign', 'type', 'threshold', 'action', 'active', 'triggered'],
+                  'budget-alert-rules'
+                )}
+                className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-2"
+              >
+                <Download className="w-3.5 h-3.5" />CSV
+              </button>
+            )}
+            <button
+              onClick={() => setShowModal(true)}
+              className="btn-primary text-xs flex items-center gap-1.5 px-3 py-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />Add Rule
+            </button>
+          </div>
         </div>
 
         {loadingAlerts ? (

@@ -7,12 +7,13 @@ import {
   ChevronUp, ChevronDown, ChevronRight, Zap,
   CheckCircle, Clock, Activity, Globe, Link, AlertTriangle,
   Printer, Trash2, Copy, Tag,
-  Bell, Play, Pause, BarChart2,
+  Bell, Play, Pause, BarChart2, Download,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import api from '../lib/api';
+import { exportToCSV } from '../lib/exportCsv';
 import FeatureHeader from '../components/ui/FeatureHeader';
 import { FEATURES } from '../config/features';
 
@@ -1028,12 +1029,106 @@ function ConfirmDialog({ title, message, onConfirm, onCancel }) {
   );
 }
 
+// ─── Bulk Audit Modal ─────────────────────────────────────────────────────────
+function BulkAuditModal({ onClose, onAuditStarted }) {
+  const [text, setText] = useState('');
+  const [results, setResults] = useState([]); // [{url, status, auditId, error}]
+  const [running, setRunning] = useState(false);
+
+  const urls = text.split('\n').map(u => u.trim()).filter(u => u.length > 4).slice(0, 10);
+
+  const runAll = async () => {
+    if (!urls.length) return;
+    setRunning(true);
+    setResults(urls.map(url => ({ url, status: 'pending' })));
+
+    for (let i = 0; i < urls.length; i++) {
+      setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'running' } : r));
+      try {
+        const res = await api.post('/seo/audit', { url: urls[i] });
+        const auditId = res.data.data?.auditId;
+        setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'done', auditId } : r));
+        if (onAuditStarted) onAuditStarted(auditId);
+      } catch (err) {
+        const msg = err?.response?.data?.error?.message || 'Failed';
+        setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'error', error: msg } : r));
+      }
+      if (i < urls.length - 1) await new Promise(r => setTimeout(r, 1200));
+    }
+    setRunning(false);
+  };
+
+  const STATUS_ICON = {
+    pending: <span className="text-xs text-text-secondary">Waiting</span>,
+    running: <Activity className="w-4 h-4 text-accent-blue animate-pulse" />,
+    done:    <CheckCircle className="w-4 h-4 text-accent-green" />,
+    error:   <AlertCircle className="w-4 h-4 text-red-400" />,
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h3 className="text-base font-semibold text-text-primary">Bulk Audit</h3>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {!results.length ? (
+            <>
+              <p className="text-xs text-text-secondary">Paste up to 10 URLs, one per line.</p>
+              <textarea
+                className="input-field w-full resize-none"
+                rows={6}
+                placeholder={`https://example.com\nhttps://another-site.com\nhttps://...`}
+                value={text}
+                onChange={e => setText(e.target.value)}
+              />
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-text-secondary">{urls.length} URL{urls.length !== 1 ? 's' : ''} detected</span>
+                <button
+                  onClick={runAll}
+                  disabled={!urls.length}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  <Search className="w-4 h-4" />
+                  Run All
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              {results.map((r, i) => (
+                <div key={i} className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-bg-secondary/40 border border-border">
+                  <span className="text-sm text-text-primary truncate flex-1">{r.url}</span>
+                  <div className="shrink-0">
+                    {STATUS_ICON[r.status]}
+                    {r.error && <span className="text-xs text-red-400 ml-2">{r.error}</span>}
+                  </div>
+                </div>
+              ))}
+              {!running && (
+                <div className="flex justify-end pt-2">
+                  <button onClick={onClose} className="btn-secondary">Done</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Audits Tab (updated) ─────────────────────────────────────────────────────
 function AuditsTab({ initialUrl = '', autoRun = false }) {
   const queryClient = useQueryClient();
   const [url, setUrl] = useState(initialUrl);
   const [selectedAuditId, setSelectedAuditId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null); // audit object | 'all' | null
+  const [showBulk, setShowBulk] = useState(false);
 
   const { data: audits, isLoading, error } = useQuery({
     queryKey: ['seo', 'audits'],
@@ -1096,7 +1191,16 @@ function AuditsTab({ initialUrl = '', autoRun = false }) {
     <div className="space-y-6">
       {/* Run audit form */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-text-primary mb-3">Run New Audit</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-text-primary">Run New Audit</h3>
+          <button
+            onClick={() => setShowBulk(true)}
+            className="btn-secondary text-xs flex items-center gap-1.5 py-1.5"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Bulk Audit
+          </button>
+        </div>
         <form onSubmit={handleRunAudit} className="flex flex-col sm:flex-row gap-3">
           <input
             type="url"
@@ -1127,16 +1231,35 @@ function AuditsTab({ initialUrl = '', autoRun = false }) {
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-primary">Past Audits</h3>
           <div className="flex items-center gap-3">
-            <p className="text-xs text-text-secondary">Click any row to view full report</p>
+            <p className="text-xs text-text-secondary hidden sm:block">Click any row to view full report</p>
             {audits?.length > 0 && (
-              <button
-                onClick={() => setConfirmDelete('all')}
-                className="flex items-center gap-1 text-xs text-text-secondary hover:text-red-400 transition-colors"
-                title="Delete all audits"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Clear All
-              </button>
+              <>
+                <button
+                  onClick={() => exportToCSV(
+                    (audits || []).map(a => ({
+                      url: a.url,
+                      score: a.overallScore ?? a.summary?.score ?? '',
+                      grade: a.grade ?? a.summary?.grade ?? '',
+                      status: a.status,
+                      date: new Date(a.createdAt).toLocaleDateString(),
+                    })),
+                    ['url', 'score', 'grade', 'status', 'date'],
+                    'seo-audits'
+                  )}
+                  className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export
+                </button>
+                <button
+                  onClick={() => setConfirmDelete('all')}
+                  className="flex items-center gap-1 text-xs text-text-secondary hover:text-red-400 transition-colors"
+                  title="Delete all audits"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Clear All
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -1252,6 +1375,14 @@ function AuditsTab({ initialUrl = '', autoRun = false }) {
           }
           onConfirm={handleConfirmDelete}
           onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {/* Bulk audit modal */}
+      {showBulk && (
+        <BulkAuditModal
+          onClose={() => { setShowBulk(false); queryClient.invalidateQueries({ queryKey: ['seo', 'audits'] }); }}
+          onAuditStarted={(id) => setSelectedAuditId(id)}
         />
       )}
     </div>
@@ -1470,6 +1601,25 @@ function KeywordsTab() {
           {syncMutation.error && <span className="text-red-400 text-xs">Sync failed.</span>}
         </div>
         <div className="flex items-center gap-2">
+          {(keywords?.length > 0) && (
+            <button
+              onClick={() => exportToCSV(
+                (keywords ?? []).map(k => ({
+                  keyword: k.keyword,
+                  rank: k.currentRank ?? '—',
+                  prev: k.previousRank ?? '—',
+                  url: k.trackedUrl ?? '',
+                  active: k.isActive ? 'Yes' : 'No',
+                })),
+                ['keyword', 'rank', 'prev', 'url', 'active'],
+                'keywords',
+                { rank: 'Current Rank', prev: 'Previous Rank', url: 'Tracked URL' }
+              )}
+              className="btn-secondary flex items-center gap-2 text-sm"
+            >
+              <Download className="w-4 h-4" />Export
+            </button>
+          )}
           <button
             onClick={() => setShowAddModal(true)}
             className="btn-primary flex items-center gap-2 text-sm"

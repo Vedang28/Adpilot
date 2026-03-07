@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Bell, CheckCircle, AlertCircle, AlertTriangle, Info,
-  CheckCheck, Trash2, X,
+  CheckCheck, Trash2, X, Download,
 } from 'lucide-react';
 import api from '../lib/api';
+import { exportToCSV } from '../lib/exportCsv';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function timeAgo(dateStr) {
@@ -82,16 +83,36 @@ export default function NotificationsPage() {
             {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
           </p>
         </div>
-        {unreadCount > 0 && (
-          <button
-            onClick={() => markAllMutation.mutate()}
-            disabled={markAllMutation.isPending}
-            className="flex items-center gap-1.5 btn-secondary text-sm"
-          >
-            <CheckCheck className="w-4 h-4" />
-            Mark all read
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {notifications.length > 0 && (
+            <button
+              onClick={() => exportToCSV(
+                notifications.map(n => ({
+                  message: n.message,
+                  type: n.type,
+                  read: n.status === 'read' ? 'Yes' : 'No',
+                  date: new Date(n.createdAt).toLocaleDateString(),
+                })),
+                ['message', 'type', 'read', 'date'],
+                'notifications'
+              )}
+              className="flex items-center gap-1.5 btn-secondary text-sm"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          )}
+          {unreadCount > 0 && (
+            <button
+              onClick={() => markAllMutation.mutate()}
+              disabled={markAllMutation.isPending}
+              className="flex items-center gap-1.5 btn-secondary text-sm"
+            >
+              <CheckCheck className="w-4 h-4" />
+              Mark all read
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter tabs */}

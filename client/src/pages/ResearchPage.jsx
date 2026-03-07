@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Globe, Search, Plus, Trash2, TrendingUp, Target, Copy, ChevronRight,
-  AlertCircle, Zap, Loader2, Sparkles, DollarSign, Key, FlaskConical,
+  AlertCircle, Zap, Loader2, Sparkles, DollarSign, Key, FlaskConical, Download,
 } from 'lucide-react';
+import { exportToCSV } from '../lib/exportCsv';
 import api from '../lib/api';
 import { useToast } from '../components/ui/Toast';
 import Badge from '../components/ui/Badge';
@@ -106,8 +107,21 @@ function CompetitorSection() {
       {/* Competitor list */}
       {!isLoading && (competitors ?? []).length > 0 && (
         <div className="card p-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-border">
+          <div className="px-5 py-3 border-b border-border flex items-center justify-between">
             <h3 className="text-sm font-semibold text-text-primary">Tracked Competitors</h3>
+            <button
+              onClick={() => exportToCSV(
+                (competitors ?? []).map(c => ({
+                  domain: c.domain, name: c.name ?? c.domain,
+                  added: new Date(c.createdAt).toLocaleDateString(),
+                })),
+                ['domain', 'name', 'added'],
+                'competitors'
+              )}
+              className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />Export
+            </button>
           </div>
           <div className="divide-y divide-border">
             {(competitors ?? []).map((c) => (

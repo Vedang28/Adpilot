@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Play, Pause, Trash2, Filter, X, AlertCircle } from 'lucide-react';
+import { Plus, Play, Pause, Trash2, Filter, X, AlertCircle, Download } from 'lucide-react';
 import api from '../lib/api';
 import Badge from '../components/ui/Badge';
 import CreateCampaignModal from '../components/campaigns/CreateCampaignModal';
+import { exportToCSV } from '../lib/exportCsv';
 
 function SkeletonRow() {
   return (
@@ -133,14 +134,34 @@ export default function CampaignsPage() {
           </div>
         </div>
 
-        {/* Desktop button — hidden on mobile (FAB used instead) */}
-        <button
-          onClick={() => setShowModal(true)}
-          className="hidden sm:flex items-center gap-2 btn-primary"
-        >
-          <Plus className="w-4 h-4" />
-          New Campaign
-        </button>
+        <div className="flex items-center gap-2">
+          {campaigns?.length > 0 && (
+            <button
+              onClick={() => exportToCSV(
+                campaigns.map(c => ({
+                  name: c.name, platform: c.platform, status: c.status,
+                  budget: Number(c.budget), budgetType: c.budgetType,
+                  created: new Date(c.createdAt).toLocaleDateString(),
+                })),
+                ['name', 'platform', 'status', 'budget', 'budgetType', 'created'],
+                'campaigns',
+                { budgetType: 'Budget Type', created: 'Created Date' }
+              )}
+              className="hidden sm:flex items-center gap-2 btn-secondary"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
+          )}
+          {/* Desktop button — hidden on mobile (FAB used instead) */}
+          <button
+            onClick={() => setShowModal(true)}
+            className="hidden sm:flex items-center gap-2 btn-primary"
+          >
+            <Plus className="w-4 h-4" />
+            New Campaign
+          </button>
+        </div>
       </div>
 
       {/* ── Mobile card list (< sm) ─────────────────────────────────────── */}
