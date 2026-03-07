@@ -10,7 +10,7 @@ const anthropic   = require('./ai/AnthropicService');
 const { withTimeout } = require('../utils/timeout');
 
 // Per-provider timeouts — Ollama is local but can be slow on first token
-const TIMEOUT_MS = { ollama: 8000, gemini: 12000, huggingface: 12000, anthropic: 10000 };
+const TIMEOUT_MS = { ollama: 8000, gemini: 8000, huggingface: 10000, anthropic: 8000 };
 
 async function getAdsByCampaign(campaignId, teamId) {
   // Verify campaign belongs to team

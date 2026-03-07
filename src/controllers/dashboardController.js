@@ -1,11 +1,12 @@
 'use strict';
 
-const prisma   = require('../config/prisma');
-const cache    = require('../cache');
+const prisma       = require('../config/prisma');
+const cache        = require('../cache');
 const { withTimeout } = require('../utils/timeout');
-const { success } = require('../common/response');
-const anthropic = require('../services/ai/AnthropicService');
-const gemini    = require('../services/ai/GeminiService');
+const { success }  = require('../common/response');
+const anthropic    = require('../services/ai/AnthropicService');
+const gemini       = require('../services/ai/GeminiService');
+const aggregator   = require('../services/analytics/AnalyticsAggregator');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -194,7 +195,11 @@ exports.getMetrics = async (req, res, next) => {
       : healthScore >= 50 ? 'Getting Started'
       : 'Set Up Your Account';
 
-    const actionItems = await generateActionItems({ keywords, competitors, alerts });
+    // AI action items — non-blocking; return fallback if AI takes > 3 s
+    const actionItems = await Promise.race([
+      generateActionItems({ keywords, competitors, alerts }),
+      new Promise(resolve => setTimeout(() => resolve(FALLBACK_ACTIONS), 3000)),
+    ]);
 
     const result = {
       health: { score: healthScore, label: healthLabel },
@@ -212,5 +217,112 @@ exports.getMetrics = async (req, res, next) => {
 
     cache.set(cacheKey, result, 120); // 2min cache
     return success(res, { ...result, meta: { cached: false, responseTime: Date.now() - start } });
+  } catch (err) { next(err); }
+};
+
+// ── GET /api/v1/dashboard/health-score ────────────────────────────────────────
+
+exports.getHealthScore = async (req, res, next) => {
+  try {
+    const { teamId } = req.user;
+    const cacheKey = `dashboard:health:${teamId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return success(res, { ...cached, cached: true });
+
+    // Reuse analytics aggregator — already computes ROAS/CTR/CPA health
+    const overview = await aggregator.getOverview(teamId, '30d');
+    const { health, actions, avgROAS, overallCTR, overallCPA, activeCampaigns, totalCampaigns } = overview;
+
+    // AI verdict — cached 30 min, skipped if no signals
+    let aiVerdict = null;
+    const verdictKey = `dashboard:health:verdict:${teamId}`;
+    const cachedVerdict = cache.get(verdictKey);
+
+    if (cachedVerdict) {
+      aiVerdict = cachedVerdict;
+    } else if (actions.length > 0) {
+      const verdictPrompt = `You are an ad performance expert. Give a 1-sentence verdict on account health and the single most important action to take now.
+
+Health score: ${health.score}/100 (${health.label})
+Issues: ${actions.map(a => a.message).join('; ')}
+ROAS: ${avgROAS}x | CTR: ${overallCTR}% | CPA: $${overallCPA}
+Active campaigns: ${activeCampaigns}/${totalCampaigns}
+
+Return ONLY a JSON object: {"verdict": "...", "topAction": "..."}`;
+
+      try {
+        let raw = null;
+        if (anthropic.isAvailable) raw = await withTimeout(anthropic.generate(verdictPrompt), 5000).catch(() => null);
+        if (!raw && gemini.isAvailable) raw = await withTimeout(gemini.generate(verdictPrompt), 5000).catch(() => null);
+        if (raw) {
+          const cleaned = raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
+          aiVerdict = JSON.parse(cleaned);
+          cache.set(verdictKey, aiVerdict, 1800); // 30min
+        }
+      } catch { /* non-critical */ }
+    }
+
+    const result = {
+      score:           health.score,
+      label:           health.label,
+      actionRequired:  health.actionRequired,
+      issues:          actions,
+      metrics:         { avgROAS, overallCTR, overallCPA, activeCampaigns, totalCampaigns },
+      aiVerdict,
+    };
+
+    cache.set(cacheKey, result, 300); // 5min
+    return success(res, { ...result, cached: false });
+  } catch (err) { next(err); }
+};
+
+// ── GET /api/v1/dashboard/recommendations ─────────────────────────────────────
+
+exports.getRecommendations = async (req, res, next) => {
+  try {
+    const { teamId } = req.user;
+    const cacheKey = `dashboard:recs:${teamId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return success(res, { recommendations: cached, cached: true });
+
+    const [overview, keywords, alerts] = await Promise.all([
+      aggregator.getOverview(teamId, '30d'),
+      prisma.keyword.findMany({
+        where: { teamId, isActive: true },
+        select: { keyword: true, currentRank: true, previousRank: true },
+        take: 10,
+      }),
+      prisma.notification.count({ where: { teamId, type: 'ALERT', status: 'pending' } }),
+    ]);
+
+    // Rule-based recommendations
+    const recs = [];
+
+    if (overview.avgROAS < 1.0) {
+      recs.push({ priority: 'CRITICAL', title: 'Pause Losing Campaigns', description: 'Average ROAS is below 1.0x — you\'re spending more than you earn. Pause underperformers immediately.', cta: 'View Campaigns', ctaUrl: '/campaigns', action: 'pause_campaigns' });
+    } else if (overview.avgROAS > 4.0) {
+      recs.push({ priority: 'HIGH', title: 'Scale Top Performers', description: `Average ROAS is ${overview.avgROAS}x — excellent. Increase budget on best campaigns to grow revenue.`, cta: 'Scale Now', ctaUrl: '/scaling', action: 'scale_campaigns' });
+    }
+
+    if (overview.overallCTR < 0.5) {
+      recs.push({ priority: 'HIGH', title: 'Refresh Ad Creatives', description: 'CTR below 0.5% signals ad fatigue. Generate new angles with the AI Ad Studio.', cta: 'Create Ads', ctaUrl: '/ads', action: 'generate_ads' });
+    }
+
+    const droppingKeywords = keywords.filter(k => k.previousRank && k.currentRank && k.currentRank > k.previousRank + 5);
+    if (droppingKeywords.length > 0) {
+      recs.push({ priority: 'MEDIUM', title: 'Investigate Ranking Drops', description: `${droppingKeywords.length} keyword(s) dropped significantly. Check for algorithm changes or new competitors.`, cta: 'View Keywords', ctaUrl: '/research', action: 'check_keywords' });
+    }
+
+    if (alerts > 0) {
+      recs.push({ priority: 'HIGH', title: `${alerts} Unread Alert${alerts > 1 ? 's' : ''}`, description: 'Budget and performance alerts need your attention.', cta: 'Review Alerts', ctaUrl: '/pulse', action: 'review_alerts' });
+    }
+
+    if (recs.length === 0) {
+      recs.push({ priority: 'LOW', title: 'Add More Competitors', description: 'Track 3+ competitors to unlock keyword gap analysis and counter-strategies.', cta: 'Add Competitor', ctaUrl: '/research', action: 'add_competitor' });
+      recs.push({ priority: 'LOW', title: 'Run an SEO Audit', description: 'Audit your site to find technical issues hurting organic rankings.', cta: 'Audit Site', ctaUrl: '/seo', action: 'seo_audit' });
+    }
+
+    cache.set(cacheKey, recs, 900); // 15min
+    return success(res, { recommendations: recs, cached: false });
   } catch (err) { next(err); }
 };

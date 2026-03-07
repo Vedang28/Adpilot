@@ -39,6 +39,7 @@ const scalingRoutes           = require('./routes/scalingRoutes');
 const monitorRoutes           = require('./routes/monitorRoutes');
 const pulseRoutes             = require('./routes/pulseRoutes');
 const dashboardRoutes         = require('./routes/dashboardRoutes');
+const reportsRoutes           = require('./routes/reportsRoutes');
 
 const app = express();
 
@@ -278,6 +279,7 @@ app.use('/api/v1/competitors',   competitorRoutes);
 app.use('/api/v1/scaling',       scalingRoutes);
 app.use('/api/v1/pulse',         pulseRoutes);
 app.use('/api/v1/dashboard',    dashboardRoutes);
+app.use('/api/v1/reports',      reportsRoutes);
 // Alias for keyword research without the /seo prefix
 app.get('/api/v1/keywords/research', require('./middleware/auth').authenticate, require('./controllers/seoController').researchKeyword);
 

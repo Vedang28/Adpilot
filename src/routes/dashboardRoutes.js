@@ -7,6 +7,8 @@ const ctrl       = require('../controllers/dashboardController');
 const router = express.Router();
 router.use(authenticate);
 
-router.get('/metrics', ctrl.getMetrics);
+router.get('/metrics',         ctrl.getMetrics);
+router.get('/health-score',    ctrl.getHealthScore);
+router.get('/recommendations', ctrl.getRecommendations);
 
 module.exports = router;
