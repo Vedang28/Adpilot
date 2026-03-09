@@ -31,7 +31,7 @@ services:
       - internal
 
   highway-app:
-    build: ./highway-app
+    build: ./src
     container_name: highway-app
     expose:
       - "4000"
